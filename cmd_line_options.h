@@ -299,7 +299,7 @@ public:
     {
         // default template should fail at compile time: this will allow for
         // compile-time reporting if parameters of specified functions are supported.
-        STATIC_ASSERT(false, extracting_parameters_of_this_type_is_not_defined);
+        STATIC_ASSERT(false, extracting_parameters_of_this_type_is_not_supported);
     }
 
     /**
