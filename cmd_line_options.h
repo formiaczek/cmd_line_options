@@ -85,9 +85,11 @@
  *   Program can also - display a list of all available commands, along with their usage and basic information,
  *   including brief description of the program (set using cmd_line_parser::set_description), its version
  *   (cmd_line_options::set_version()) and description of what parameters are required for specified options.
- *   Help for examples like above looks as follows:
+ *_____________________________
  *
- * c:\>my_cmd_line_tool ?
+ *  Help for examples like above looks as follows:
+ *
+ *  c:\>my_cmd_line_tool ?
  *
  *  my_cmd_line_tool, version: 1.0.33
  *
@@ -106,8 +108,9 @@
  *    hello_few_times   : prints "hello" few times
  *                usage : my_cmd_line_tool hello_few_times <int>
  *
- * ____
- * an attempt to run a command with wrong values for expected parameters can result
+ * __________________________
+ *
+ * An attempt to run a command with wrong values for expected parameters can result
  * is messages like:
  *
  * ./my_cmd_line_tool hello_few_times 0xas
@@ -116,9 +119,25 @@
  *
  * Usage:
  *   my_cmd_line_tool hello_few_times <int>
- * _____
+ * ___________________________
  *
+ *  Copyright (c) 2012 Lukasz Forynski <lukasz.forynski@gmail.com>
  *
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy of this
+ *  software and associated documentation files (the "Software"), to deal in the Software
+ *  without restriction, including without limitation the rights to use, copy, modify, merge,
+ *  publish, distribute, sub-license, and/or sell copies of the Software, and to permit persons
+ *  to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ *  - The above copyright notice and this permission notice shall be included in all copies
+ *  or substantial portions of the Software.
+ *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ *  INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+ *  PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
+ *  FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+ *  OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ *  DEALINGS IN THE SOFTWARE.
  *
  */
 
