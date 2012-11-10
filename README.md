@@ -27,8 +27,9 @@ cmd_line_options
    of logic and required behaviour by simply allowing automatic creation of options using functions
    as prototypes.
 
-Example:
 
+Example:
+{{{
     // prototype of a command-line option that takes an 'int' as a parameter
     void hello_few_times(int number_of_times)
     {
@@ -73,43 +74,70 @@ Example:
 
         return 0;
     }
-
+}}}
    integer values can be specified either as decimal (by default) or as hexadecimal (starting with 0x...)
    - appropriate parsers will automatically work out the format.
    If, at any stage of parsing, a parameter can not be extracted, the framework reports this as appropriate.
 
-   Program can also - display a list of all available commands, along with their usage and basic information,
-   including brief description of the program (set using cmd_line_parser::set_description), its version
-   (cmd_line_options::set_version()) and description of what parameters are required for specified options.
-   Help for examples like above looks as follows:
+   Program can also - display a list of all available commands, along with their usage and basic information, including brief description of the program (set using cmd_line_parser::set_description), its version (cmd_line_options::set_version()) and description of what parameters are required for specified options. Help for examples like above looks as follows:
 
-      c:\>my_cmd_line_tool ?
+{{{
+c:\>my_cmd_line_tool ?
 
-      my_cmd_line_tool, version: 1.0.33
+ my_cmd_line_tool, version: 1.0.33
 
-      This tool is used to...(whatever)....
+ This tool is used to...(whatever)....
 
-      Use "?" or "help" to get more information.
+ Use "?" or "help" to get more information.
 
-      Available options:
+ Available options:
 
-      -d_sth            : does something (...)
-                  usage : my_cmd_line_tool -d_sth <char> <double> <unsigned long>
+    -d_sth            : does something (...)
+                usage : my_cmd_line_tool -d_sth <char> <double> <unsigned long>
 
-      do_something_else : does something else (...)
-                  usage : my_cmd_line_tool do_something_else <char> <unsigned short>
+    do_something_else : does something else (...)
+                usage : my_cmd_line_tool do_something_else <char> <unsigned short>
 
-      hello_few_times   : prints "hello" few times
-                  usage : my_cmd_line_tool hello_few_times <int>
+    hello_few_times   : prints "hello" few times
+                usage : my_cmd_line_tool hello_few_times <int>
+}}}
 
- an attempt to run a command with wrong values for expected parameters can result
- is messages like:
+An attempt to run a command with wrong values for expected parameters can result is messages like:
+{{{
+./my_cmd_line_tool hello_few_times 0xas
 
-    ./my_cmd_line_tool hello_few_times 0xas
+  Error when parsing parameters, expected: <int>, got "0xas".
 
-    Error when parsing parameters, expected: <int>, got "0xas".
+  Usage:
+     my_cmd_line_tool hello_few_times <int>
+}}}
 
-    Usage:
-       my_cmd_line_tool hello_few_times <int>
+Also note, that if the function is not suitable to be used as a command-line option (i.e. contains parameters that can't be parsed/extracted from the command-line, e.g. pointers etc) - attempt to use such a function will result in a compile time error like below. Note also, that const char* and std::string are going to be added sometime soon)
+{{{
+// if one of the functions from above example is modified as follows:
+29: int do_something(char letter, double* param1, unsigned long param2)
+   {
+   }
+
+
+56: int main(int argc, char **argv)
+    {
+       (...)
+66:    parser.add_option(do_something, "-d_sth", "does something (...)");
+}}}
+The example will fail to compile with the error message containing the following:
+
+{{{
+g++ example.cpp 
+In file included from example.cpp:13:
+cmd_line_options.h: In constructor ‘param_extractor<ParamType>::param_extractor() [with ParamType = double*]’:
+cmd_line_options.h:1658:   instantiated from ‘void cmd_line_parser::add_option(RetType (*)(P1, P2, P3), std::string, std::string) [with RetType = int, P1 = char, P2 = double*, P3 = long unsigned int]’
+example.cpp:66:   instantiated from here
+cmd_line_options.h:302: error: ‘ct_assert_in_line_302__extracting_parameters_of_this_type_is_not_supported’ has incomplete type
+}}}
+
+Which should be just as enough to figure out what went wrong :) 
+(i.e. that extracting parameters for double* is not supported, and this came from calling add_option in example.cpp, line 66.
+
 
 
