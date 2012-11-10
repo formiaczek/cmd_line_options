@@ -138,7 +138,6 @@
  *  FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  *  OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  *  DEALINGS IN THE SOFTWARE.
- *
  */
 
 #ifndef CMD_LINE_OPTIONS_
@@ -244,7 +243,7 @@ public:
  * @brief Helper function to extract the whole token from the stringstream,
  *        based on a specified delimiter list.
  */
-std::string get_next_token(std::stringstream& from, std::string delimiter_list)
+inline std::string get_next_token(std::stringstream& from, std::string delimiter_list)
 {
     std::string next_token;
     int where = from.tellg();
@@ -1864,4 +1863,4 @@ inline void cmd_line_parser::add_option(
             description);
 }
 
-#endif /* OPTION_H_ */
+#endif /* CMD_LINE_OPTIONS_ */
