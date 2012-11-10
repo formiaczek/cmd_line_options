@@ -1,6 +1,7 @@
 cmd_line_options
 ================
 
+   https://github.com/formiaczek/cmd_line_options/wiki/command-line-options
 
    Command line options template library is meant to provide an easy way
    of adding command-line options to your program. Defining and adding these
@@ -30,6 +31,7 @@ cmd_line_options
 
 Example:
 {{{
+
     // prototype of a command-line option that takes an 'int' as a parameter
     void hello_few_times(int number_of_times)
     {
@@ -74,6 +76,7 @@ Example:
 
         return 0;
     }
+     
 }}}
    integer values can be specified either as decimal (by default) or as hexadecimal (starting with 0x...)
    - appropriate parsers will automatically work out the format.
@@ -82,6 +85,7 @@ Example:
    Program can also - display a list of all available commands, along with their usage and basic information, including brief description of the program (set using cmd_line_parser::set_description), its version (cmd_line_options::set_version()) and description of what parameters are required for specified options. Help for examples like above looks as follows:
 
 {{{
+
 c:\>my_cmd_line_tool ?
 
  my_cmd_line_tool, version: 1.0.33
