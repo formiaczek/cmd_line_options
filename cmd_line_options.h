@@ -8,7 +8,7 @@
  *   Command line options template library is meant to provide an easy way
  *   of adding command-line options to your program. Defining and adding these
  *   options is very generic and intuitive way and requires minimal programming effort.
- *   All that is required is to express requirements as functions, and the framework
+ *   All that is needed is to express requirements as functions, and the framework
  *   will automatically match appropriate templates to implement all the logic.
  *
  *   In most cases programs, where command-line options are used, usually need to:
@@ -20,15 +20,15 @@
  *      of a program, usually calling specified functions. This is often implemented as a
  *      'switch/case' statement in the main() function.
  *
- *   All of the above often requires the programmer to define all details of specific behaviour
- *   and even with the use of existing command-line option parsing frameworks it might often
- *   still be boring, complicated and error-prone task.
+ *   All of the above requires from the programmer to define all the details of specific 
+ *   behaviour, and even with the use of existing command-line option parsing frameworks can 
+ *   often still be a boring, complicated and error-prone task.
  *
  *   In order to try to simplify the above and make it more easy to use (trying to make it more
  *   fit for the purposes like above) this framework attempts to remove from the programmer
- *   the burden of defining and implementing all these details. It also simplifies implementation
- *   of logic and required behaviour by simply allowing automatic creation of options using functions
- *   as prototypes.
+ *   the need of defining and implementing most of these details. It also simplifies implementation
+ *   of the logic and required behaviour - simply allowing automatic creation of options using
+ *   functions as prototypes.
  *
  *   Example:
  *   @code
@@ -53,7 +53,7 @@
  *        std::string buf;
  *    };
  *
- *    int do_something_else(MyObject* obj_ptr, std::string new_str, unsigned short param1)
+ *    int do_something_else(MyObject* obj_ptr, std::string new_str)
  *    {
  *       // can now do something with it.., e.g.:
  *       obj_ptr->buf =  new_str;
@@ -85,6 +85,7 @@
  *   Program can also - display a list of all available commands, along with their usage and basic information,
  *   including brief description of the program (set using cmd_line_parser::set_description), its version
  *   (cmd_line_options::set_version()) and description of what parameters are required for specified options.
+ *   Refer to examples for more details.
  *_____________________________
  *
  *  Help for examples like above looks as follows:
