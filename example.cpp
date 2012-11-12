@@ -25,6 +25,7 @@ void hello_few_times(int number_of_times)
     std::cout << std::endl;
 }
 
+
 // another prototype of functions that takes more parameters:
 int do_something(char letter, double param1, unsigned long param2)
 {
@@ -36,14 +37,14 @@ int do_something(char letter, double param1, unsigned long param2)
 // another prototype of functions to which we'd like to pass an object (or some sort of address) to use
 struct MyObject
 {
-    int val;
+    std::string str;
 };
 
-int update_my_object(MyObject* obj_ptr, int new_value)
+int update_my_object(MyObject* obj_ptr, std::string new_str)
 {
-    printf("old: obj_ptr->val: %d\n", obj_ptr->val);
-    printf("updating it to %d\n", new_value);
-    obj_ptr->val = new_value;
+    std::cout << "old: obj_ptr->val:\'" << obj_ptr->str << "\'";
+    std::cout << "\nupdating it to: \'"<< new_str<< "\'\n";
+    obj_ptr->str = new_str;
     return 1; // note, that fuctions can various return type. At the moment it is not used by the framework.
 }
 
@@ -52,6 +53,12 @@ void print_hello_world()
     std::cout << "hello world!\n";
 }
 
+// prototype of a command-line options that takes two strings..
+void say(std::string what, std::string what2)
+{
+        std::cout << "\nfirst  :(" << what << ")\n";
+        std::cout << "second :(" << what2 << ")\n";
+}
 
 int main(int argc, char **argv)
 {
@@ -66,20 +73,26 @@ int main(int argc, char **argv)
     parser.add_option(do_something, "-d_sth", "does something (...)");
 
     MyObject my_obj;
-    parser.add_option(update_my_object, &my_obj,  "update_my_object", "Updates something (..)");
+    int update_opt_id = parser.add_option(update_my_object, &my_obj,  "update_my_object", "Updates something (..)");
 
     // If someone is really lazy - he can also add an option using SPLIT_TO_NAME_AND_STR
     // macro. This will cause the function name to be used as a name for the option, e.g.:
     parser.add_option(SPLIT_TO_NAME_AND_STR(print_hello_world), "prints \"hello world\"");
 
-    parser.run(argc, argv); // this starts the parser..
+    parser.add_option(say, "say", "will just print what you typed");
 
-    printf("my_obj before exit: my_obj.val: %d\n", my_obj.val);
+    int option_id = parser.run(argc, argv); // this starts the parser..
+    std::cout << "executed option: " << option_id << std::endl;
+
+    if(option_id == update_opt_id)
+    {
+        std::cout << " my updated object (my_obj.str): \'" << my_obj.str << "\'";
+    }
 
     return 0;
 }
 
-/* Example output:
+/* Example output:s
 ____________________________________
 
 ~$ ./example  ?
@@ -102,6 +115,9 @@ Available options:
   print_hello_world : prints "hello world"
               usage : example print_hello_world
 
+  say               : will just print what you typed
+              usage : my_prog say <string> <string>
+
   update_my_object  : Updates something (..)
               usage : example update_my_object <int>
 ____________________________________
@@ -115,9 +131,9 @@ Error when parsing parameters, expected: <char>, got "wfa".
 
 ____________________________________
 
-$ ./example  update_my_object 43
-old: obj_ptr->val: 0
-updating it to 43
-my_obj before exit: my_obj.val: 43
-
+$ ./example  update_my_object new_name
+old: obj_ptr->val:''
+updating it to: 'new_name'
+executed option: 2
+ my updated object (my_obj.str): 'new_name'
  */
