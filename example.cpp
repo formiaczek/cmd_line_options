@@ -15,6 +15,7 @@
 #define PRINT_FCN_NAME 	printf("%s \n", __PRETTY_FUNCTION__)
 
 
+
 // prototype of a command-line options that takes an 'int' as a parameter..
 void hello_few_times(int number_of_times)
 {
@@ -42,8 +43,6 @@ struct MyObject
 
 int update_my_object(MyObject* obj_ptr, std::string new_str)
 {
-    std::cout << "old: obj_ptr->val:\'" << obj_ptr->str << "\'";
-    std::cout << "\nupdating it to: \'"<< new_str<< "\'\n";
     obj_ptr->str = new_str;
     return 1; // note, that fuctions can various return type. At the moment it is not used by the framework.
 }
@@ -59,6 +58,7 @@ void say(std::string what, std::string what2)
         std::cout << "\nfirst  :(" << what << ")\n";
         std::cout << "second :(" << what2 << ")\n";
 }
+
 
 int main(int argc, char **argv)
 {
@@ -81,12 +81,14 @@ int main(int argc, char **argv)
 
     parser.add_option(say, "say", "will just print what you typed");
 
-    int option_id = parser.run(argc, argv); // this starts the parser..
-    std::cout << "executed option: " << option_id << std::endl;
+    parser.run(argc, argv); // this starts the parser..
 
-    if(option_id == update_opt_id)
+
+    // rest of your program..
+
+    if(parser.check_if_option_specified("update_my_object"))
     {
-        std::cout << " my updated object (my_obj.str): \'" << my_obj.str << "\'";
+        std::cout << " my updated object (my_obj.str): \'" << my_obj.str << "\'\n";
     }
 
     return 0;
@@ -132,8 +134,6 @@ Error when parsing parameters, expected: <char>, got "wfa".
 ____________________________________
 
 $ ./example  update_my_object new_name
-old: obj_ptr->val:''
-updating it to: 'new_name'
-executed option: 2
  my updated object (my_obj.str): 'new_name'
  */
+
