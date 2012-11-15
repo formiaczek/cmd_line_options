@@ -152,7 +152,5 @@ Available options:
 
  $ ./example2 standalone aa a_b bb
  option: "standalone" can't be used with: "a_b", "aa", "bb"
-
-
-
+*/
 
