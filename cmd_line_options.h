@@ -2,44 +2,51 @@
  * cmd_line_options.h
  *
  *  Created on: 2012-06-25
- *  Author: Lukasz Forynski
- *          (lukasz.forynski@gmail.com)
+ *  Author: lukasz.forynski@gmail.com
  *
  *     Command line options template library is meant to provide an easy way for adding
  *   command-line options to your program. The goal is to be able to add these options
  *   in a generic and intuitive way that requires only minimal programming effort.
- *
- *     All the programmer needs to do is to to express requirements as functions.
- *   Optionally dependencies between options can be specified and the framework will
- *   automatically implement all the logic needed to ensure proper intended use of
- *   specified set of options.
  *
  *    Programs, where command-line options are used, usually need to:
  *     - define command-line options,
  *     - parse command line arguments to check if (and which) of these options were specified,
  *     - attempt to extract parameters that a particular option requires (if any),
  *     - successful extraction usually results in further actions being taken by the program.
- *       These actions can, for example, define or alter the behaviour of the program, e.g.
- *       by changing values of variable(s) or result in calls to various functions to handle
- *       these particular options. The later is often implemented as a 'switch/case' statement,
- *       usually defined in the "main()" function.
+ *       These actions can, for example:
+ *         - define or alter the behaviour of the program, e.g. by changing values of variable(s), or
+ *         - result in calls to various functions to handle specified options.
+ *       The later is often implemented as a 'switch/case' statement, usually defined in the "main()"
+ *       function.
  *
- *       The above requires from the programmer to define all the details of this specific
- *       behaviour, and even with the use of existing command-line option parsing frameworks
- *       still some of above needs to be implemented manually. This can often be a boring,
- *       complicated and error-prone task.
+ *   In order to try to simplify the above (trying to make it more fit for the purposes
+ *   like above) this framework attempts to remove from the ( lazy ) programmer the need
+ *   to define and implement most of these details. It also simplifies implementation of
+ *   the program flow / logic that normally needs to be implemented manually.
  *
- *       In order to try to simplify the above (trying to make it more fit for the purposes
- *       like above) this framework attempts to remove from the ( lazy ) programmer the need
- *       to define and implement most of these details.
- *       It also simplifies implementation of the logic and required behaviour - options
- *       are created automatically and all parameter checking is also performed automatically.
- *       Parameters will be extracted from the command line and passed to the function used
- *       to define the option.
+ *     All the programmer needs to do is to to express his requirements as functions.
+ *   Command-line options created using these functions will automatically 'know' what
+ *   parameter type(s) they expect and will implement all the details of extracting them
+ *   and notifying if they weren't correct etc.
  *
- *  See the Wiki and examples for more details.
+ *     Unlike with other similar frameworks / libraries - there is no need to explicitly
+ *   define parameter type(s) when creating the option. There is also no need to refer to
+ *   their type again when looking at results of parsing.
  *
- *  Wiki: http://github.com/formiaczek/cmd_line_options/wiki
+ *   The idea is simple, either:
+ *     - we'll get a message what went wrong and why, or
+ *     - our function(s) will be called and in parameters we'll get values that were passed
+ *       directly.
+ *
+ *      Optionally dependencies between options can be defined and the framework will
+ *   automatically implement all the logic needed to ensure that combination of specified
+ *   command-line parameters is valid and allowed. This gives flexibility in defining options
+ *   that require other additional options or do not allow use with other options - and
+ *   once defined - it's all checked automatically: no need to implement it in your program,
+ *   and if something isn't correct: framework will give the user a hint on what was wrong.
+ *
+ *   See the Wiki and examples for more details.
+ *   Wiki: http://github.com/formiaczek/cmd_line_options/wiki
  *
  *  ________________________________________________________________
  *  Copyright (c) 2012 Lukasz Forynski <lukasz.forynski@gmail.com>
