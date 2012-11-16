@@ -5,125 +5,43 @@
  *  Author: Lukasz Forynski
  *          (lukasz.forynski@gmail.com)
  *
- *   Command line options template library is meant to provide an easy way
- *   of adding command-line options to your program. Defining and adding these
- *   options is very generic and intuitive way and requires minimal programming effort.
- *   All that is needed is to express requirements as functions, and the framework
- *   will automatically match appropriate templates to implement all the logic.
+ *     Command line options template library is meant to provide an easy way for adding
+ *   command-line options to your program. The goal is to be able to add these options
+ *   in a generic and intuitive way that requires only minimal programming effort.
  *
- *   In most cases programs, where command-line options are used, usually need to:
- *    - define these command-line options,
- *    - parse command line arguments to check if (and which) of these options was specified
- *    - attempt to extract parameters that a particular option requires (if any).
- *    - if extraction is successful - it usually results in further actions being taken
- *      by the program. These actions can, for example, define or alter the behaviour
- *      of a program, usually calling specified functions. This is often implemented as a
- *      'switch/case' statement in the main() function.
+ *     All the programmer needs to do is to to express requirements as functions.
+ *   Optionally dependencies between options can be specified and the framework will
+ *   automatically implement all the logic needed to ensure proper intended use of
+ *   specified set of options.
  *
- *   All of the above requires from the programmer to define all the details of specific
- *   behaviour, and even with the use of existing command-line option parsing frameworks can
- *   often still be a boring, complicated and error-prone task.
+ *    Programs, where command-line options are used, usually need to:
+ *     - define command-line options,
+ *     - parse command line arguments to check if (and which) of these options were specified,
+ *     - attempt to extract parameters that a particular option requires (if any),
+ *     - successful extraction usually results in further actions being taken by the program.
+ *       These actions can, for example, define or alter the behaviour of the program, e.g.
+ *       by changing values of variable(s) or result in calls to various functions to handle
+ *       these particular options. The later is often implemented as a 'switch/case' statement,
+ *       usually defined in the "main()" function.
  *
- *   In order to try to simplify the above and make it more easy to use (trying to make it more
- *   fit for the purposes like above) this framework attempts to remove from the programmer
- *   the need of defining and implementing most of these details. It also simplifies implementation
- *   of the logic and required behaviour - simply allowing automatic creation of options using
- *   functions as prototypes.
+ *       The above requires from the programmer to define all the details of this specific
+ *       behaviour, and even with the use of existing command-line option parsing frameworks
+ *       still some of above needs to be implemented manually. This can often be a boring,
+ *       complicated and error-prone task.
  *
- *   Wiki: https://github.com/formiaczek/cmd_line_options/wiki/command-line-options
+ *       In order to try to simplify the above (trying to make it more fit for the purposes
+ *       like above) this framework attempts to remove from the ( lazy ) programmer the need
+ *       to define and implement most of these details.
+ *       It also simplifies implementation of the logic and required behaviour - options
+ *       are created automatically and all parameter checking is also performed automatically.
+ *       Parameters will be extracted from the command line and passed to the function used
+ *       to define the option.
  *
- *   Example:
- *   @code
- *    // prototype of a command-line option that takes an 'int' as a parameter..
- *    void hello_few_times(int number_of_times)
- *    {
- *        for (int i = 0; i < number_of_times; i++)
- *        {
- *            std::cout << "hello ";
- *        }
- *    }
+ *  See the Wiki and examples for more details.
  *
- *    // another prototype of function that takes more parameters:
- *    int do_something(char letter, double param1, unsigned long param2)
- *    {
- *      // ...
- *    }
+ *  Wiki: http://github.com/formiaczek/cmd_line_options/wiki
  *
- *    // another prototype of function to which we'd like to pass an object (or some sort of address)
- *    struct MyObject
- *    {
- *        std::string buf;
- *    };
- *
- *    int do_something_else(MyObject* obj_ptr, std::string new_str)
- *    {
- *       // can now do something with it.., e.g.:
- *       obj_ptr->buf =  new_str;
- *    }
-
- *    // and now, in your main() - creating program options goes down to doing the following:
- *    int main(int argc, char **argv)
- *    {
- *        cmd_line_parser parser;
- *        parser.set_description("This tool is used to...(whatever)....");
- *        parser.set_version("1.0.33");
- *
- *        parser.add_option(hello_few_times, "hello_few_times", "prints \"hello\" few times");
- *        parser.add_option(do_something, "-d_sth", "does something (...)");
- *
- *        MyObject my_obj;
- *        parser.add_option(do_something_else, &my_obj,  "do_something_else", "does something else (...)");
- *
- *        parser.run(argc, argv); // this line will start parsing & execute appropriate function.
- *
- *        return 0;
- *    }
- *   @endcode
- *
- *   Integer values can be specified either as decimal (by default) or as hexadecimal (starting with 0x...)
- *   - appropriate parsers will automatically work out the format.
- *   If, at any stage of parsing, a parameter can not be extracted, the framework reports this as appropriate.
- *
- *   Program can also - display a list of all available commands, along with their usage and basic information,
- *   including brief description of the program (set using cmd_line_parser::set_description), its version
- *   (cmd_line_options::set_version()) and description of what parameters are required for specified options.
- *   Refer to examples for more details.
- *_____________________________
- *
- *  Help for examples like above looks as follows:
- *
- *  c:\>my_cmd_line_tool ?
- *
- *  my_cmd_line_tool, version: 1.0.33
- *
- *  This tool is used to...(whatever)....
- *
- *  Use "?" or "help" to get more information.
- *
- *  Available options:
- *
- *    -d_sth            : does something (...)
- *                usage : my_cmd_line_tool -d_sth <char> <double> <unsigned long>
- *
- *    do_something_else : does something else (...)
- *                usage : my_cmd_line_tool do_something_else <char> <unsigned short>
- *
- *    hello_few_times   : prints "hello" few times
- *                usage : my_cmd_line_tool hello_few_times <int>
- *
- * __________________________
- *
- * An attempt to run a command with wrong values for expected parameters can result
- * is messages like:
- *
- * ./my_cmd_line_tool hello_few_times 0xas
- *
- * Error when parsing parameters, expected: <int>, got "0xas".
- *
- * Usage:
- *   my_cmd_line_tool hello_few_times <int>
- * ___________________________
- *
+ *  ________________________________________________________________
  *  Copyright (c) 2012 Lukasz Forynski <lukasz.forynski@gmail.com>
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy of this

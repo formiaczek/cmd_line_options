@@ -16,7 +16,7 @@
 
 
 
-// prototype of a command-line options that takes an 'int' as a parameter..
+// prototype for a command-line option that takes an 'int' as a parameter..
 void hello_few_times(int number_of_times)
 {
     for (int i = 0; i < number_of_times; i++)
@@ -27,7 +27,7 @@ void hello_few_times(int number_of_times)
 }
 
 
-// another prototype of functions that takes more parameters:
+// another prototype for option that requires more parameters:
 int do_something(char letter, double param1, unsigned long param2)
 {
     PRINT_FCN_NAME;
@@ -35,12 +35,14 @@ int do_something(char letter, double param1, unsigned long param2)
     return 0;
 }
 
-// another prototype of functions to which we'd like to pass an object (or some sort of address) to use
+
+
 struct MyObject
 {
     std::string str;
 };
 
+// another prototype for option in which we'd like to alter the state of an object (or other memory location)
 int update_my_object(MyObject* obj_ptr, std::string new_str)
 {
     obj_ptr->str = new_str;
