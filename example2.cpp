@@ -3,7 +3,10 @@
  *
  *  Created on: 2012-11-15
  *  Author: lukasz.forynski@gmail.com
+ *
+ *  @brief This is an example of using command-line options that have dependencies.
  */
+
 
 #include <iostream>
 #include <sstream>
@@ -49,43 +52,29 @@ int main(int argc, char **argv)
     parser.set_version("0.0.1");
 
     std::stringstream desc;
-
     desc << "This is an example of how to use cmd_line_options library\n";
-    desc
-            << "to specify options with dependencies. The framework will provide all\n";
-    desc
-            << "the logic required to check if a combination of selected options is valid.\n";
+    desc << "to specify options with dependencies. The framework will provide all\n";
+    desc << "the logic required to check if a combination of selected options is valid.\n";
     desc << "Author: Lukasz Forynski (lukasz.forynski@gmail.com)";
-
     parser.set_description(desc.str());
 
     parser.add_option(aa, "aa", "simple option - no specific requirements");
-
-    parser.add_option(bb, "bb",
-                      "another simple option - no specific requirements");
-
-    parser.add_option(
-            a_b, "a_b",
-            "example option that requires specifying another two option");
-
-    parser.add_option(a_only, "a_only",
-                      "only with a specific sub-set of options.");
-
-    parser.add_option(b_only, "b_only",
-                      "also with only specific sub-set of options.");
-
-    parser.add_option(standalone, "standalone",
-                      "If specified-it should be the only option.");
+    parser.add_option(bb, "bb", "another option - no specific requirements");
+    parser.add_option(a_b, "a_b", "option that requires specifying another two..");
+    parser.add_option(a_only, "a_only", "only use with a specific sub-set of options.");
+    parser.add_option(b_only, "b_only", "also with only specific sub-set of options.");
+    parser.add_option(standalone, "standalone", "If specified-it should be the only option.");
 
     // now setup dependencies..
 
     // setup required options - in form of a comma/colon/semicolon or space separated list.
     // All options used - should be valid (i.e. should have been added already)
     parser.setup_required_options("a_b", "aa, bb");
-
     parser.setup_not_wanted_options("a_only", "bb, a_b, standalone");
     parser.setup_not_wanted_options("b_only", "aa, a_b, standalone");
-    parser.setup_as_single_option("standalone");
+
+    // this adds option as a standalone (i.e. it must not be specified with any other option)
+    parser.setup_option_as_standalone("standalone");
 
     parser.run(argc, argv); // now start parsing..
 
@@ -108,10 +97,10 @@ Use "?" or "help" to print more information.
 
 Available options:
 
-  a_b        : example option that requires specifying another two option
+  a_b        : option that requires specifying another two..
        usage : example2 a_b
 
-  a_only     : only with a specific sub-set of options.
+  a_only     : only use with a specific sub-set of options.
        usage : example2 a_only
 
   aa         : simple option - no specific requirements
@@ -120,15 +109,16 @@ Available options:
   b_only     : also with only specific sub-set of options.
        usage : example2 b_only
 
-  bb         : another simple option - no specific requirements
+  bb         : another option - no specific requirements
        usage : example2 bb
 
   standalone : If specified-it should be the only option.
        usage : example2 standalone
+
  ____________________________________
 
  ~$ ./example2 a_b
- option: "a_b" requires also: "aa", "bb"
+ error: option "a_b" requires also: "aa", "bb"
  ____________________________________
 
  $ ./example2 a_b bb aa
@@ -138,11 +128,11 @@ Available options:
  ____________________________________
 
  $ ./example2 b_only aa
- option: "b_only" can't be used with: "aa"
+ error: option "b_only" can't be used with: "aa"
  ____________________________________
 
  $ ./example2 b_only aa a_b
- option: "b_only" can't be used with: "a_b", "aa"
+ error: option "b_only" can't be used with: "a_b", "aa"
  ____________________________________
 
  $ ./example2 b_only bb
@@ -151,6 +141,5 @@ Available options:
  ____________________________________
 
  $ ./example2 standalone aa a_b bb
- option: "standalone" can't be used with: "a_b", "aa", "bb"
+ error: option "standalone" can't be used with other options, but specified with: "a_b", "aa", "bb"
 */
-

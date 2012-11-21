@@ -71,23 +71,22 @@
 #ifndef CMD_LINE_OPTIONS_
 #define CMD_LINE_OPTIONS_
 
+
 #include <set>
 #include <map>
 #include <vector>
 #include <string>
 #include <algorithm>
-#include <stdlib.h>
+#include <iostream>
+#include <memory>
+#include <sstream>
 #include <exception>
+
 #include <stdio.h>
 #include <stdarg.h>
-#include <memory>
-
-#include <sstream>
-#include <istream>
-#include <algorithm>
+#include <stdlib.h>
 
 #define SPLIT_TO_NAME_AND_STR(identifier) identifier, #identifier
-#define ALL(container) ((container).begin(), (container).end())
 
 // in case there's no support for c++0x - below some
 // defines to produce more descriptive
@@ -100,6 +99,15 @@ template<> struct CTAssert<true>
 };
 #define PASTE0(x, y)  x ## y
 #define PASTE(x, y) PASTE0(x, y)
+
+
+#ifdef _MSC_VER
+#define VSNPRINTF(dest, max_len, format, vargs) vsnprintf_s(dest, max_len, max_len, format, vargs)
+#define __PRETTY_FUNCTION__ __FUNCTION__
+#else
+#define VSNPRINTF(dest, max_len, format, vargs) vsnprintf(dest, max_len, format, vargs)
+#endif
+
 
 /**
  * @brief Compile-time assert macro. Allows adding a message.
@@ -128,12 +136,15 @@ public:
     /**
      @brief  Overloaded constructor. Use it as printf() for exceptions..
      */
-    option_error(const char* format, ...)
+    option_error(std::string format, ...)
     {
-        va_list vArgs;
-        va_start(vArgs, format);
-        vsnprintf(msg, MAX_MSG_SIZE, format, vArgs);
-        va_end(vArgs);
+        if(format.length() > 0)
+        {
+            va_list vArgs;
+            va_start(vArgs, format);
+            VSNPRINTF(msg, MAX_MSG_LEN, format.c_str(), vArgs);
+            va_end(vArgs);
+        }
     }
 
     /**
@@ -146,9 +157,9 @@ public:
 protected:
     enum constants
     {
-        MAX_MSG_SIZE = 512
+        MAX_MSG_LEN = 512
     };
-    char msg[MAX_MSG_SIZE];
+    char msg[MAX_MSG_LEN];
 };
 
 /**
@@ -174,14 +185,13 @@ public:
  * @brief Helper function to extract the whole token from the stringstream,
  * based on a specified delimiter list.
  */
-inline std::string get_next_token(std::stringstream& from,
-                                  std::string delimiter_list = "\"")
+inline std::string get_next_token(std::stringstream& from, std::string delimiter_list = "\"")
 {
     std::string next_token;
-    int where = from.tellg();
+    long where = static_cast<long>(from.tellg());
     if (where >= 0)
     {
-        int max_token_size = from.str().size() - where;
+        long max_token_size = from.str().size() - where;
         std::string temp_token = from.str().substr(where, max_token_size);
         int end = temp_token.find_first_of(delimiter_list);
 
@@ -189,7 +199,7 @@ inline std::string get_next_token(std::stringstream& from,
         while (end == 0 && max_token_size > 0)
         {
             from.get();
-            where = from.tellg();
+            where = static_cast<long>(from.tellg());
             max_token_size--;
             if (max_token_size > 0)
             {
@@ -205,8 +215,7 @@ inline std::string get_next_token(std::stringstream& from,
         if (max_token_size > 0)
         {
             next_token = from.str().substr(where, end);
-            std::auto_ptr<char_array> buff(
-                    new char_array(next_token.size() + 1));
+            std::auto_ptr<char_array> buff(new char_array(next_token.size() + 1));
             from.get(buff->ptr, next_token.size() + 1);
         }
     }
@@ -219,7 +228,7 @@ inline std::string get_next_token(std::stringstream& from,
  *        errors if cmd_line_parser::add_option() is called with a function for which any
  *        of the parameters can not be extracted (see below and examples for more detail.
  */
-template<class ParamType>
+template<class ParamType, class Other = void>
 class param_extractor
 {
 public:
@@ -231,8 +240,7 @@ public:
     {
         // default template should fail at compile time: this will allow for
         // compile-time reporting if parameters of specified functions are supported.
-        STATIC_ASSERT(false,
-                      EXTRACTING_PARAMETERS_OF_THIS_TYPE_IS_NOT_SUPPORTED);
+        STATIC_ASSERT(false, EXTRACTING_PARAMETERS_OF_THIS_TYPE_IS_NOT_SUPPORTED);
     }
 
     /**
@@ -263,7 +271,7 @@ public:
  *        will report a compile time error.
  */
 #define STATIC_ASSERT_IF_CAN_BE_EXTRACTED(param) \
-		{ param_extractor<typeof(param)> a; (void)a;}
+		{ param_extractor<param> a; (void)a;}
 
 /**
  * @brief Specialisation of param_extractor for "int" type.
@@ -299,8 +307,7 @@ public:
 
         if (token.fail() || !token.eof())
         {
-            throw option_error("%s, got \"%s\".", usage().c_str(),
-                               token.str().c_str());
+            throw option_error("%s, got \"%s\".", usage().c_str(), token.str().c_str());
         }
         return param * sign;
     }
@@ -349,8 +356,7 @@ public:
 
         if (token.fail() || !token.eof() || sign == -1)
         {
-            throw option_error("%s, got \"%s\".", usage().c_str(),
-                               token.str().c_str());
+            throw option_error("%s, got \"%s\".", usage().c_str(), token.str().c_str());
         }
         return param;
     }
@@ -395,8 +401,7 @@ public:
 
         if (token.fail() || !token.eof())
         {
-            throw option_error("%s, got \"%s\".", usage().c_str(),
-                               token.str().c_str());
+            throw option_error("%s, got \"%s\".", usage().c_str(), token.str().c_str());
         }
         return param * sign;
     }
@@ -445,8 +450,7 @@ public:
 
         if (token.fail() || !token.eof() || sign == -1)
         {
-            throw option_error("%s, got \"%s\".", usage().c_str(),
-                               token.str().c_str());
+            throw option_error("%s, got \"%s\".", usage().c_str(), token.str().c_str());
         }
         return param;
     }
@@ -494,8 +498,7 @@ public:
 
         if (token.fail() || !token.eof())
         {
-            throw option_error("%s, got \"%s\".", usage().c_str(),
-                               token.str().c_str());
+            throw option_error("%s, got \"%s\".", usage().c_str(), token.str().c_str());
         }
         return param * sign;
     }
@@ -543,8 +546,7 @@ public:
 
         if (token.fail() || !token.eof() || sign == -1)
         {
-            throw option_error("%s, got \"%s\".", usage().c_str(),
-                               token.str().c_str());
+            throw option_error("%s, got \"%s\".", usage().c_str(), token.str().c_str());
         }
         return param;
     }
@@ -574,8 +576,7 @@ public:
         param = token.get();
         if (token.fail() || token.get() != std::char_traits<char>::eof())
         {
-            throw option_error("%s, got \"%s\".", usage().c_str(),
-                               token.str().c_str());
+            throw option_error("%s, got \"%s\".", usage().c_str(), token.str().c_str());
         }
         return param;
     }
@@ -605,8 +606,7 @@ public:
         param = token.get();
         if (token.fail() || token.get() != std::char_traits<char>::eof())
         {
-            throw option_error("%s, got \"%s\".", usage().c_str(),
-                               token.str().c_str());
+            throw option_error("%s, got \"%s\".", usage().c_str(), token.str().c_str());
         }
         return param;
     }
@@ -637,8 +637,7 @@ public:
         param = token.get();
         if (token.fail() || token.get() != std::char_traits<char>::eof())
         {
-            throw option_error("%s, got \"%s\".", usage().c_str(),
-                               token.str().c_str());
+            throw option_error("%s, got \"%s\".", usage().c_str(), token.str().c_str());
         }
         return param;
     }
@@ -693,21 +692,11 @@ public:
     static float extract(std::stringstream& from)
     {
         float param;
-        int sign = 1;
         std::stringstream token(get_next_token(from));
-
-        if (token.peek() == '-')
-        {
-            sign = -1;
-            token.get();
-        }
-
         token >> param;
-
-        if (token.fail() || !token.eof() || sign == -1)
+        if (token.fail() || !token.eof())
         {
-            throw option_error("%s, got \"%s\".", usage().c_str(),
-                               token.str().c_str());
+            throw option_error("%s, got \"%s\".", usage().c_str(), token.str().c_str());
         }
         return param;
     }
@@ -733,21 +722,12 @@ public:
     static double extract(std::stringstream& from)
     {
         double param;
-        int sign = 1;
         std::stringstream token(get_next_token(from));
-
-        if (token.peek() == '-')
-        {
-            sign = -1;
-            token.get();
-        }
-
         token >> param;
 
-        if (token.fail() || !token.eof() || sign == -1)
+        if (token.fail() || !token.eof())
         {
-            throw option_error("%s, got \"%s\".", usage().c_str(),
-                               token.str().c_str());
+            throw option_error("%s, got \"%s\".", usage().c_str(), token.str().c_str());
         }
         return param;
     }
@@ -773,21 +753,13 @@ public:
     static long double extract(std::stringstream& from)
     {
         long double param;
-        int sign = 1;
         std::stringstream token(get_next_token(from));
-
-        if (token.peek() == '-')
-        {
-            sign = -1;
-            token.get();
-        }
 
         token >> param;
 
-        if (token.fail() || !token.eof() || sign == -1)
+        if (token.fail() || !token.eof())
         {
-            throw option_error("%s, got \"%s\".", usage().c_str(),
-                               token.str().c_str());
+            throw option_error("%s, got \"%s\".", usage().c_str(), token.str().c_str());
         }
         return param;
     }
@@ -799,6 +771,117 @@ public:
         return std::string("<long double>");
     }
 };
+
+/**
+ * @brief Helper class to allow specifying default values for parameters
+ *        And also allowing the framework to try to extract them accordingly.
+ *        Since there is no syntactic way? to tell in C/C++ if the function
+ *        takes default parameters, this function could define these parameters
+ *        with the macro OPTIONAL_VALUE defined below.
+ */
+template<class T, T defalt_value>
+class optional_value
+{
+public:
+    /**
+     * @brief Default constructor - it will assign a constant to the real value.
+     */
+    optional_value() :
+                    value(defalt_value)
+    {
+    }
+
+    /**
+     * @brief Overloaded constructor - will copy parameter to value.
+     *       It provides implicit conversion to allow to call function with type
+     *       specified with default parameter (using OPTIONAL_VALUE) with the value
+     *       (see description of OPTIONAL_VALUE).
+     */
+    optional_value(T val) :
+                    value(val)
+    {
+    }
+
+    /**
+     * @brief Getter..
+     */
+    void set_value(T val)
+    {
+        value = val;
+    }
+
+    /**
+     * @brief Setter..
+     */
+    T get_value()
+    {
+        return value;
+    }
+
+    T value;
+};
+
+/**
+ * @brief Specialisation of param_extractor for "optional_value" type.
+ */
+template<class ParamType, ParamType default_val>
+class param_extractor<optional_value<ParamType, default_val> >
+{
+public:
+
+    /**
+     * @brief Extracts a parameter and returns a value according to the ParamType.
+     *        If extraction was not successful, from will be re-winded and
+     *        default_value will be used for option that requires this type.
+     */
+    static optional_value<ParamType, default_val> extract(std::stringstream& from)
+    {
+        optional_value<ParamType, default_val> param;
+        std::streamoff tellg = from.tellg();
+        try
+        {
+            param.value = param_extractor<ParamType>::extract(from);
+        } catch (option_error& /*e*/)
+        {
+            // in this case -this could have been some other (next) option
+            // so unget (rewind) it allowing next parsers to continue from last place
+            from.seekg(tellg);
+        }
+        return param;
+    }
+
+    /**
+     * @brief This method should return a 'usage' for the parameter. It will be called by the
+     *        framework to prepare usage information for params that use it.
+     */
+    static std::string usage()
+    {
+        return param_extractor<ParamType>::usage() + "(optional)";
+    }
+};
+
+/**
+ * @brief Macro to be used to define default parameters in a function.
+ *       TODO: due to C++ restrictions that only integer types can be
+ *        used as template constant, only int  long (and also char) types
+ *        can be used this way.. Well - perhaps could do it differently,
+ *        but this was a neat and quick extension for at least these types:)
+ *
+ * Example:
+ * @code
+ * void fuc(int required_param1, OPTIONAL_VALUE(int, param2, 128)
+ * {
+ *    param2.get_val()  => will have a value that was specified, otherwise (if no proper integer specified) it will be 128.
+ * }
+ *  // note also, that this function can be used in rest of the program as standard overloaded function, e.g.:
+ *  // e.g.: without specifying this param, e.g.:
+ *  func(12); // 128 will be returned by get_val()
+ *
+ *  // or providing it:
+ *  func(12, 324); // 324 will now be returned by get_val()
+ * @endcode
+ */
+#define OPTIONAL_VALUE(type, name, value) optional_value<type, value> name = optional_value<type, value>()
 
 /**
  * @brief Base class for options. It is mainly to provide a common interface
@@ -813,7 +896,7 @@ public:
      *         is selected from the command line.
      */
     option(std::string& name) :
-            id(-1), required(false), name(name)
+                    required(false), standalone(false), name(name)
     {
     }
     /**
@@ -848,35 +931,36 @@ public:
         std::sort(not_wanted_options.begin(), not_wanted_options.end());
     }
 
-    void check_if_valid_with_these_options(
-            std::vector<std::string> all_specified_options)
+    void set_as_standalone()
+    {
+        standalone = true;
+    }
+
+    void check_if_valid_with_these_options(std::vector<std::string> all_specified_options)
     {
 
         std::stringstream result;
         if (all_specified_options.size())
         {
-            std::sort(all_specified_options.begin(),
-                      all_specified_options.end());
+            std::sort(all_specified_options.begin(), all_specified_options.end());
 
             if (required_options.size() && all_specified_options.size())
             {
                 std::vector<std::string> tmp(
-                        std::max(all_specified_options.size(),
-                                 required_options.size()));
+                                std::max<size_t>(all_specified_options.size(), required_options.size()));
 
                 Container isect = Container(
-                        tmp.begin(),
-                        std::set_difference(required_options.begin(),
-                                            required_options.end(),
-                                            all_specified_options.begin(),
-                                            all_specified_options.end(),
-                                            tmp.begin()));
+                                tmp.begin(),
+                                std::set_difference(required_options.begin(),
+                                                    required_options.end(),
+                                                    all_specified_options.begin(),
+                                                    all_specified_options.end(), tmp.begin()));
 
                 Container::iterator res = isect.begin();
 
                 if (isect.size())
                 {
-                    result << "option: \"" << name << "\" requires also: ";
+                    result << "option \"" << name << "\" requires also: ";
                     for (res = isect.begin(); res != isect.end();)
                     {
                         result << "\"" << *res << "\"";
@@ -892,22 +976,20 @@ public:
             if (not_wanted_options.size())
             {
                 std::vector<std::string> tmp(
-                        std::max(all_specified_options.size(),
-                                 not_wanted_options.size()));
+                                std::max<size_t>(all_specified_options.size(), not_wanted_options.size()));
 
                 std::vector<std::string> isect(
-                        tmp.begin(),
-                        std::set_intersection(not_wanted_options.begin(),
-                                              not_wanted_options.end(),
-                                              all_specified_options.begin(),
-                                              all_specified_options.end(),
-                                              tmp.begin()));
+                                tmp.begin(),
+                                std::set_intersection(not_wanted_options.begin(),
+                                                      not_wanted_options.end(),
+                                                      all_specified_options.begin(),
+                                                      all_specified_options.end(), tmp.begin()));
 
                 if (isect.size())
                 {
                     if (result.str().size() == 0)
                     {
-                        result << "option: \"" << name << "\"";
+                        result << "option \"" << name << "\"";
                     }
                     else
                     {
@@ -926,10 +1008,34 @@ public:
                     }
                 }
             }
+
+            if (standalone)
+            {
+                if (all_specified_options.size() > 1)
+                {
+                    result.str().clear();
+                    result << "option \"" << name << "\"";
+                    result << " can't be used with other options, but specified with: ";
+                    std::vector<std::string>::iterator res;
+                    for (res = all_specified_options.begin(); res != all_specified_options.end();
+                                    res++)
+                    {
+                        if (*res != name)
+                        {
+                            if (res != all_specified_options.begin())
+                            {
+                                result << ", ";
+                            }
+                            result << "\"" << *res << "\"";
+                        }
+                    }
+                }
+            }
         }
+
         if (result.str().length() > 0)
         {
-            throw option_error("%s", result.str().c_str());
+            throw option_error("error: %s", result.str().c_str());
         }
     }
 
@@ -950,8 +1056,8 @@ public:
      */
     virtual void execute() = 0;
 
-    int id;
     bool required;
+    bool standalone;
     std::string name;
     std::string usage;
     std::string descr;
@@ -978,7 +1084,7 @@ public:
      *        This name is used as a keyword to select this option on the command line.
      */
     option_no_params(Fcn f_ptr, std::string& name) :
-            option(name), f(f_ptr)
+                    option(name), f(f_ptr)
     {
     }
 
@@ -1022,7 +1128,7 @@ public:
      *        It also prepares a 'usage' string based on parameter type.
      */
     option_1_param(Fcn f_ptr, std::string& name) :
-            option(name), f(f_ptr)
+                    option(name), f(f_ptr)
     {
         usage = param_extractor<P1>::usage();
     }
@@ -1064,7 +1170,7 @@ public:
      *        It also prepares a 'usage' string based on parameter types.
      */
     option_2_params(Fcn f_ptr, std::string& name) :
-            option(name), f(f_ptr)
+                    option(name), f(f_ptr)
     {
         usage = param_extractor<P1>::usage() + " ";
         usage += param_extractor<P2>::usage();
@@ -1109,7 +1215,7 @@ public:
      *        It also prepares a 'usage' string based on parameter types.
      */
     option_3_params(Fcn f_ptr, std::string& name) :
-            option(name), f(f_ptr)
+                    option(name), f(f_ptr)
     {
         usage = param_extractor<P1>::usage() + " ";
         usage += param_extractor<P2>::usage() + " ";
@@ -1157,7 +1263,7 @@ public:
      *        It also prepares a 'usage' string based on parameter types.
      */
     option_4_params(Fcn f_ptr, std::string& name) :
-            option(name), f(f_ptr)
+                    option(name), f(f_ptr)
     {
         usage = param_extractor<P1>::usage() + " ";
         usage += param_extractor<P2>::usage() + " ";
@@ -1197,8 +1303,7 @@ protected:
     P4 p4;
 };
 
-template<typename Fcn, typename P1, typename P2, typename P3, typename P4,
-        typename P5>
+template<typename Fcn, typename P1, typename P2, typename P3, typename P4, typename P5>
 class option_5_params: public option
 {
 public:
@@ -1209,7 +1314,7 @@ public:
      *        It also prepares a 'usage' string based on parameter types.
      */
     option_5_params(Fcn f_ptr, std::string& name) :
-            option(name), f(f_ptr)
+                    option(name), f(f_ptr)
     {
         usage = param_extractor<P1>::usage() + " ";
         usage += param_extractor<P2>::usage() + " ";
@@ -1261,9 +1366,8 @@ public:
      * @param name - name of the option.
      *        This name is used as a keyword to select this option on the command line.
      */
-    option_no_params_pass_obj(Fcn f_ptr, ObjType* object_address,
-                              std::string& name) :
-            option(name), f(f_ptr), obj_addr(object_address)
+    option_no_params_pass_obj(Fcn f_ptr, ObjType* object_address, std::string& name) :
+                    option(name), f(f_ptr), obj_addr(object_address)
     {
     }
 
@@ -1277,7 +1381,7 @@ public:
     }
 protected:
     option_no_params_pass_obj() :
-            obj_addr(NULL)
+                    obj_addr(NULL)
     {
     }
     Fcn f;
@@ -1294,9 +1398,8 @@ public:
      *        This name is used as a keyword to select this option on the command line.
      *        It also prepares a 'usage' string based on parameter type.
      */
-    option_1_param_pass_obj(Fcn f_ptr, ObjType* object_address,
-                            std::string& name) :
-            option(name), f(f_ptr), obj_addr(object_address)
+    option_1_param_pass_obj(Fcn f_ptr, ObjType* object_address, std::string& name) :
+                    option(name), f(f_ptr), obj_addr(object_address)
     {
         usage = param_extractor<P1>::usage();
     }
@@ -1322,7 +1425,7 @@ public:
     }
 protected:
     option_1_param_pass_obj() :
-            obj_addr(NULL)
+                    obj_addr(NULL)
     {
     }
     Fcn f;
@@ -1340,9 +1443,8 @@ public:
      *        This name is used as a keyword to select this option on the command line.
      *        It also prepares a 'usage' string based on parameter types.
      */
-    option_2_params_pass_obj(Fcn f_ptr, ObjType* object_address,
-                             std::string& name) :
-            option(name), f(f_ptr), obj_addr(object_address)
+    option_2_params_pass_obj(Fcn f_ptr, ObjType* object_address, std::string& name) :
+                    option(name), f(f_ptr), obj_addr(object_address)
     {
         usage = param_extractor<P1>::usage() + " ";
         usage += param_extractor<P2>::usage();
@@ -1370,7 +1472,7 @@ public:
     }
 protected:
     option_2_params_pass_obj() :
-            obj_addr(NULL)
+                    obj_addr(NULL)
     {
     }
     Fcn f;
@@ -1389,9 +1491,8 @@ public:
      *        This name is used as a keyword to select this option on the command line.
      *        It also prepares a 'usage' string based on parameter types.
      */
-    option_3_params_pass_obj(Fcn f_ptr, ObjType* object_address,
-                             std::string& name) :
-            option(name), f(f_ptr), obj_addr(object_address)
+    option_3_params_pass_obj(Fcn f_ptr, ObjType* object_address, std::string& name) :
+                    option(name), f(f_ptr), obj_addr(object_address)
     {
         usage = param_extractor<P1>::usage() + " ";
         usage += param_extractor<P2>::usage() + " ";
@@ -1420,7 +1521,7 @@ public:
     }
 protected:
     option_3_params_pass_obj() :
-            obj_addr(NULL)
+                    obj_addr(NULL)
     {
     }
     Fcn f;
@@ -1430,8 +1531,7 @@ protected:
     P3 p3;
 };
 
-template<typename Fcn, typename ObjType, typename P1, typename P2, typename P3,
-        typename P4>
+template<typename Fcn, typename ObjType, typename P1, typename P2, typename P3, typename P4>
 class option_4_params_pass_obj: public option
 {
 public:
@@ -1442,7 +1542,7 @@ public:
      *        It also prepares a 'usage' string based on parameter types.
      */
     option_4_params_pass_obj(Fcn f_ptr, ObjType* obj_address, std::string& name) :
-            option(name), f(f_ptr), obj_addr(obj_address)
+                    option(name), f(f_ptr), obj_addr(obj_address)
     {
         usage = param_extractor<P1>::usage() + " ";
         usage += param_extractor<P2>::usage() + " ";
@@ -1473,7 +1573,7 @@ public:
     }
 protected:
     option_4_params_pass_obj() :
-            obj_addr(NULL)
+                    obj_addr(NULL)
     {
     }
     Fcn f;
@@ -1500,7 +1600,7 @@ public:
      * @brief Default constructor.
      */
     cmd_line_parser() :
-            version("(not set)"), option_cnt(0)
+                    version("(not set)"), default_option(NULL), other_args_handler(NULL)
     {
     }
 
@@ -1539,7 +1639,7 @@ public:
      *        - name of the executable (from argv[0])
      *        - version
      *        - description
-     *        - list of parameters along with the usage
+     *        - list of options and usage information
      */
     void display_help()
     {
@@ -1549,30 +1649,43 @@ public:
         res << "\n" << program_name;
         res << ", version: " << version << "\n\n";
         res << description << std::endl;
-        res << "\nUse \"?\" or \"help\" to print more information.\n";
-        res << "\nAvailable options:\n\n";
+        res << "\nUse \"?\", \"-h\" or \"--help\" to print more information.\n";
 
-        size_t max_cmd_len = 0;
-        for (i = options.begin(); i != options.end(); i++)
+        if (default_option != NULL)
         {
-            const std::string& s = i->first;
-            max_cmd_len = std::max(max_cmd_len, s.length());
-        }
-
-        max_cmd_len += 1;
-
-        for (i = options.begin(); i != options.end(); i++)
-        {
-            const std::string& s = i->first;
-            option*& option = i->second;
-            std::string indent;
-            indent.resize(max_cmd_len - s.length(), ' ');
-            res << "  " << s << indent << ": ";
-            res << option->descr << "\n";
-            indent.resize(max_cmd_len - 4, ' ');
-            res << indent << "usage : " << program_name;
-            res << " " << s << " " << option->usage;
+            res << "\n     " << "usage : " << program_name;
+            res << " " << default_option->usage;
             res << "\n\n";
+        }
+        else
+        {
+            res << "\nAvailable options:\n\n";
+
+            size_t max_cmd_len = 0;
+            for (i = options.begin(); i != options.end(); i++)
+            {
+                const std::string& s = i->first;
+                max_cmd_len = std::max<size_t>(max_cmd_len, s.length());
+            }
+
+            max_cmd_len += 1;
+
+            for (i = options.begin(); i != options.end(); i++)
+            {
+                const std::string& s = i->first;
+                option*& option = i->second;
+                std::string indent;
+                indent.resize(max_cmd_len - s.length(), ' ');
+                res << "  " << s << indent << ": ";
+                res << option->descr << "\n";
+                if (max_cmd_len > 4)
+                {
+                    indent.resize(max_cmd_len - 4, ' ');
+                }
+                res << indent << "usage : " << program_name;
+                res << " " << s << " " << option->usage;
+                res << "\n\n";
+            }
         }
         std::cout << res.str();
     }
@@ -1584,8 +1697,7 @@ public:
      * @param list_of_required_options string containing list of options (comma/semicolon/space separated)
      * @throws option_error if any of specified options is not valid (i.e. has not been previously added)
      */
-    void setup_required_options(std::string option_name,
-                                std::string list_of_required_options)
+    void setup_required_options(std::string option_name, std::string list_of_required_options)
     {
         try
         {
@@ -1605,13 +1717,11 @@ public:
      //     * @param list_of_not_wanted_options string containing list of options (comma/semicolon/space separated)
      * @throws option_error if any of specified options is not valid (i.e. has not been previously added)
      */
-    void setup_not_wanted_options(std::string option_name,
-                                  std::string list_of_not_wanted_options)
+    void setup_not_wanted_options(std::string option_name, std::string list_of_not_wanted_options)
     {
         try
         {
-            try_adding_dependent_options(option_name,
-                                         list_of_not_wanted_options,
+            try_adding_dependent_options(option_name, list_of_not_wanted_options,
                                          &option::add_not_wanted_option);
         } catch (option_error& err)
         {
@@ -1626,43 +1736,77 @@ public:
      * @param option_name option name, for which dependent options are being specified
      * @throws option_error if option is not valid (i.e. has not been previously added)
      */
-    void setup_as_single_option(std::string option_name)
+    void setup_option_as_standalone(std::string option_name)
     {
-        std::string all_options;
-        OptionContainer::iterator i = options.begin();
-        for (; i != options.end(); i++)
+        OptionContainer::iterator i = options.find(option_name);
+        if (i == options.end())
         {
-            if (i->first != option_name)
-            {
-                all_options += i->first + " ";
-            }
+            throw option_error(
+                            "error: adding dependencies for option \"%s\" failed, option is not valid",
+                            option_name.c_str());
         }
-        try
+        else
         {
-            try_adding_dependent_options(option_name, all_options,
-                                         &option::add_not_wanted_option);
-        } catch (option_error& err)
-        {
-            std::cout << err.what() << std::endl;
-            throw; // re-throw. This should indicate to the user that setup is wrong..
+            i->second->set_as_standalone();
         }
     }
 
     /**
+     * @brief Typedef for handler to be used with add_handler_for_other_options.
+     */
+    typedef void (*other_arguments_handler)(std::vector<std::string>& other_arguments);
+
+    /**
+     * @brief Adds handler for other (unrecognised) arguments.
+     *        If this method is used and proper handler is added: all command-line arguments
+     *        not recognised as options or option-arguments will be passed to this handler
+     *        at the end of execution (i.e. once all option-handlers have executed).
+     */
+    void add_handler_for_other_arguments(other_arguments_handler handler)
+    {
+        other_args_handler = handler;
+    }
+
+    /**
      * @brief When done creating / adding options, run this method giving proper argc/argv values
-     *        To parse command-line options.
+     *        To parse command-line options. All command-line arguments will be parsed.
+     *        If all is successful - appropriate handlers (functions used to create options) will
+     *        be executed in the order they were found in cmd-line arguments. By default - options
+     *        can be specified multiple times, and if all parameters are correct, their functions
+     *        will be called multiple times with parsed values. Once all recognised option-handlers
+     *        (functions) have executed - a handler for other arguments is executed.
      * @param argc: number of elements in argv
      * @param argv: command-line parameters.
-     * @return option_id of option that executed, or -1 if parsing was not successful and none
-     *         (of the required options) executed.
+     * @return true - if parsing was successful, false otherwise or if help was requested.
      * @throws option_error if argc/argv are not valid.
      */
-    int run(int argc, char **argv)
+    bool run(int argc, char *const argv[])
     {
-        int option_id = -1;
+        bool result = false;
         std::stringstream cmd_line(convert_cmd_line_to_string(argc, argv));
-        bool found = false;
 
+        if (default_option != NULL)
+        {
+            if (is_it_help(cmd_line))
+            {
+                display_help();
+                return false;
+            }
+            else
+            {
+                try
+                {
+                    try_to_extract_params(default_option, cmd_line);
+                    result = true;
+                } catch (option_error& e)
+                {
+                    std::cout << e.what() << std::endl;
+                    return false;
+                }
+            }
+        }
+
+        bool found = false;
         do
         {
             try
@@ -1671,34 +1815,48 @@ public:
             } catch (option_error& err)
             {
                 std::cout << err.what();
-                return option_id;
+                return false;
             }
         } while (found);
 
-        std::vector<std::string>::iterator i;
-
-        for (i = execute_list.begin(); i != execute_list.end(); i++)
+        if (default_option != NULL)
         {
-            try
+            default_option->execute();
+        }
+        else
+        {
+            std::vector<std::string>::iterator i;
+            for (i = execute_list.begin(); i != execute_list.end(); i++)
             {
-                options[*i]->check_if_valid_with_these_options(execute_list);
+                try
+                {
+                    options[*i]->check_if_valid_with_these_options(execute_list);
+                } catch (option_error& e)
+                {
+                    std::cout << e.what() << std::endl;
 
-            } catch (option_error& e)
+                    // skip any execution if options were not right.
+                    execute_list.clear();
+                    break;
+                }
+            }
+
+            if (execute_list.size())
             {
-                std::cout << e.what() << std::endl;
-
-                // skip any execution if options were not right.
-                execute_list.clear();
-                break;
+                for (i = execute_list.begin(); i != execute_list.end(); i++)
+                {
+                    options[*i]->execute();
+                }
+                result = true;
             }
         }
 
-        for (i = execute_list.begin(); i != execute_list.end(); i++)
+        if (other_args_handler != NULL && other_args.size() > 0)
         {
-            options[*i]->execute();
+            other_args_handler(other_args);
+            result = true;
         }
-
-        return option_id;
+        return result;
     }
 
     /**
@@ -1708,84 +1866,110 @@ public:
      */
     bool check_if_option_specified(std::string option_name)
     {
-        std::set<std::string>el(execute_list.begin(), execute_list.end()); // lazy 'two-liner' way..
-        return(el.find(option_name) != el.end());
+        std::set<std::string> el(execute_list.begin(), execute_list.end()); // lazy 'two-liner' way..
+        return (el.find(option_name) != el.end());
     }
 
     template<class RetType>
-    int add_option(RetType function_ptr(), std::string name,
-                   std::string description);
+    void add_option(RetType function_ptr(), std::string name, std::string description);
 
     template<class RetType, typename P1>
-    int add_option(RetType function_ptr(P1), std::string name,
-                   std::string description);
+    void add_option(RetType function_ptr(P1), std::string name, std::string description);
 
     template<class RetType, typename P1, typename P2>
-    int add_option(RetType function_ptr(P1, P2), std::string name,
-                   std::string description);
+    void add_option(RetType function_ptr(P1, P2), std::string name, std::string description);
 
     template<class RetType, typename P1, typename P2, typename P3>
-    int add_option(RetType function_ptr(P1, P2, P3), std::string name,
-                   std::string description);
+    void add_option(RetType function_ptr(P1, P2, P3), std::string name, std::string description);
 
     template<class RetType, typename P1, typename P2, typename P3, typename P4>
-    int add_option(RetType function_ptr(P1, P2, P3, P4), std::string name,
-                   std::string description);
+    void add_option(RetType function_ptr(P1, P2, P3, P4), std::string name,
+                    std::string description);
 
-    template<class RetType, typename P1, typename P2, typename P3, typename P4,
-            typename P5>
-    int add_option(RetType function_ptr(P1, P2, P3, P4, P5), std::string name,
-                   std::string description);
+    template<class RetType, typename P1, typename P2, typename P3, typename P4, typename P5>
+    void add_option(RetType function_ptr(P1, P2, P3, P4, P5), std::string name,
+                    std::string description);
 
-    // adding options for functions taking pointer (to object) as a first parameter
+// adding options for functions taking pointer (to object) as a first parameter
     template<class RetType, typename ObjType>
-    int add_option(RetType function_ptr(ObjType*), ObjType* obj_address,
-                   std::string name, std::string description);
+    void add_option(RetType function_ptr(ObjType*), ObjType* obj_address, std::string name,
+                    std::string description);
 
     template<class RetType, typename ObjType, typename P1>
-    int add_option(RetType function_ptr(ObjType*, P1), ObjType* obj_address,
-                   std::string name, std::string description);
+    void add_option(RetType function_ptr(ObjType*, P1), ObjType* obj_address, std::string name,
+                    std::string description);
 
     template<class RetType, typename ObjType, typename P1, typename P2>
-    int add_option(RetType function_ptr(ObjType*, P1, P2), ObjType* obj_address,
-                   std::string name, std::string description);
+    void add_option(RetType function_ptr(ObjType*, P1, P2), ObjType* obj_address, std::string name,
+                    std::string description);
 
-    template<class RetType, typename ObjType, typename P1, typename P2,
-            typename P3>
-    int add_option(RetType function_ptr(ObjType*, P1, P2, P3),
-                   ObjType* obj_address, std::string name,
-                   std::string description);
+    template<class RetType, typename ObjType, typename P1, typename P2, typename P3>
+    void add_option(RetType function_ptr(ObjType*, P1, P2, P3), ObjType* obj_address,
+                    std::string name, std::string description);
 
-    template<class RetType, typename ObjType, typename P1, typename P2,
-            typename P3, typename P4>
-    int add_option(RetType function_ptr(ObjType*, P1, P2, P3, P4),
-                   ObjType* obj_address, std::string name,
-                   std::string description);
+    template<class RetType, typename ObjType, typename P1, typename P2, typename P3, typename P4>
+    void add_option(RetType function_ptr(ObjType*, P1, P2, P3, P4), ObjType* obj_address,
+                    std::string name, std::string description);
 protected:
     /**
      * @brief Internal method to add a raw-option.
+     *        It adds an option or a default option (if name of option is zero-length),
+     *        performing various checks if it is valid do to so.
      */
-    int add_option(option* a, std::string description)
+    void add_option(option* a, std::string description)
     {
-        int option_id = -1;
+        std::stringstream err;
         if (a != NULL)
         {
-            a->set_description(description);
-
-            if (options.find(a->name) != options.end())
+            if (a->name.length() != 0)
             {
-                throw option_error("%s(): option \"%s\" already exists",
-                                   __FUNCTION__, a->name.c_str());
+                if (default_option == NULL)
+                {
+                    a->set_description(description);
+                    if (options.find(a->name) != options.end())
+                    {
+                        err << __FUNCTION__ << "(): option \"" << a->name << "\" already exists";
+                    }
+                    else
+                    {
+                        options.insert(std::make_pair(a->name, a));
+                    }
+                }
+                else
+                {
+                    err << __FUNCTION__ << "(): trying to add \"" << a->name;
+                    err << "\" option, but default option was set";
+                }
             }
-            options.insert(std::make_pair(a->name, a));
-            option_id = option_cnt++;
-            options[a->name]->id = option_id;
+            else
+            {
+                if (default_option == NULL)
+                {
+                    if(options.size() > 0)
+                    {
+                        err << __FUNCTION__ << "(): Trying to add default option when other options exist";
+                    }
+                    else
+                    {
+                        default_option = a;
+                    }
+                }
+                else
+                {
+                    err << __FUNCTION__;
+                    err << "(): Trying to add another default option";
+                }
+            }
         }
         else
         {
-            throw option_error("%s(): option can't be NULL", __FUNCTION__);
+            err << __FUNCTION__ << "(): option can't be NULL";
         }
-        return option_id;
+
+        if (err.str().length() > 0)
+        {
+            throw option_error("%s", err.str().c_str());
+        }
     }
 
     /**
@@ -1794,7 +1978,7 @@ protected:
      * @returns string containing parameters, delimited by space.
      * @throws option_error if argc / argv are not valid.
      */
-    std::string convert_cmd_line_to_string(int argc, char **argv)
+    std::string convert_cmd_line_to_string(int argc, char* const argv[])
     {
         if (argv == NULL || argc < 1)
         {
@@ -1829,6 +2013,62 @@ protected:
         return cmd_line;
     }
 
+    bool is_it_help(std::stringstream& from)
+    {
+        std::string option;
+        std::streamoff pos = from.tellg();
+        option = get_next_token(from);
+        bool is_help = false;
+
+        std::string h(option);
+        h.erase(0, h.find_first_not_of("-"));
+        std::transform(h.begin(), h.end(), h.begin(), ::tolower);
+        if (h == "?" || h == "h" || h == "help")
+        {
+            is_help = true;
+        }
+        else
+        {
+            from.seekg(pos);
+        }
+        return is_help;
+    }
+
+    void try_to_extract_params(option* opt, std::stringstream& from)
+    {
+        if(opt != NULL)
+        {
+            try
+            {
+                opt->extract_params(from);
+
+            } catch (option_error& e)
+            {
+                std::stringstream s;
+                if(opt->name.length() > 0)
+                {
+                    s << "\nOption: \"" << opt->name << "\": ";
+                }
+                else
+                {
+                    s << "\n " << program_name << ": ";
+                }
+                s << "error while parsing parameters, expected: " << e.what();
+                s << "\n\n Usage: \n    " << program_name << " ";
+                if(opt->name.length()>0)
+                    {
+                    s << opt->name << " ";
+                    }
+                s << opt->usage;
+                throw option_error("%s\n", s.str().c_str());
+            }
+        }
+        else
+        {
+            throw option_error("error using %s(): option can't be NULL", __FUNCTION__);
+        }
+    }
+
     /**
      * @brief Internal method to check if there are more options in the stream
      * @returns true if new option has been found, false - otherwise.
@@ -1838,42 +2078,39 @@ protected:
     bool could_find_next_option(std::stringstream& from)
     {
         std::string option;
-        option = get_next_token(from);
         bool found = false;
 
-        if (option == "?" || option == "help")
+        if (is_it_help(from))
         {
             display_help();
             execute_list.clear();
         }
         else
         {
+            option = get_next_token(from);
             OptionContainer::iterator i = options.find(option);
             if (option.length() && i != options.end())
             {
-                try
-                {
-                    i->second->extract_params(from);
-                    execute_list.push_back(option);
-                    found = true;
-                } catch (option_error& e)
-                {
-                    std::stringstream s;
-                    s << "\nOption: \"" << option << "\": ";
-                    s << "error while parsing parameters, expected: "
-                            << e.what();
-                    s << "\n\n Usage: \n    " << program_name << " " << option;
-                    s << " " << i->second->usage;
-                    throw option_error("%s\n", s.str().c_str());
-                }
+
+                try_to_extract_params(i->second, from);
+                execute_list.push_back(option);
+                found = true;
             }
             else
             {
                 if (option.length() != 0)
                 {
-                    throw option_error(
-                            "\"%s\": no such option, try \"?\" or \"help\" to see usage.\n",
-                            option.c_str());
+                    if (other_args_handler == NULL)
+                    {
+                        throw option_error(
+                                        "\"%s\": no such option, try \"?\" or \"help\" to see usage.\n",
+                                        option.c_str());
+                    }
+                    else
+                    {
+                        other_args.push_back(option);
+                        found = true;
+                    }
                 }
             }
         }
@@ -1890,16 +2127,15 @@ protected:
      * @brief Internal method to add selected list of option to either required or not wanted list.
      * @throws option_error any of specified options is not valid.
      */
-    void try_adding_dependent_options(std::string& to_option,
-                                      std::string& list_of_options,
-                                      operation_type add_dependent_option)
+    void try_adding_dependent_options(std::string& to_option, std::string& list_of_options,
+                    operation_type add_dependent_option)
     {
         OptionContainer::iterator i = options.find(to_option);
         if (i == options.end())
         {
             throw option_error(
-                    "error: adding dependencies for option \"%s\" failed, option is not valid",
-                    to_option.c_str());
+                            "error: adding dependencies for option \"%s\" failed, option is not valid",
+                            to_option.c_str());
         }
 
         option*& curr_option = i->second;
@@ -1919,8 +2155,8 @@ protected:
             else
             {
                 throw option_error(
-                        "error: adding dependencies for option \"%s\" failed: option \"%s\" is not valid",
-                        to_option.c_str(), next_option.c_str());
+                                "error: adding dependencies for option \"%s\" failed: option \"%s\" is not valid",
+                                to_option.c_str(), next_option.c_str());
             }
             next_option = get_next_token(s, " ,;\"\t\n\r");
         }
@@ -1930,7 +2166,9 @@ protected:
     std::string description;
     std::string program_name;
     std::string version;
-    int option_cnt;
+    option* default_option;
+    other_arguments_handler other_args_handler;
+    std::vector<std::string> other_args;
     std::vector<std::string> execute_list;
 };
 
@@ -1946,12 +2184,10 @@ protected:
  *         This id can be used against cmd_line_parser::run() return to see if this option has executed.
  */
 template<class RetType>
-inline int cmd_line_parser::add_option(RetType function_ptr(), std::string name,
-                                       std::string description)
+inline void cmd_line_parser::add_option(RetType function_ptr(), std::string name,
+                std::string description)
 {
-    return add_option(
-            new option_no_params<typeof(function_ptr)>(function_ptr, name),
-            description);
+    add_option(new option_no_params<RetType (*)()>(function_ptr, name), description);
 }
 
 /**
@@ -1970,14 +2206,11 @@ inline int cmd_line_parser::add_option(RetType function_ptr(), std::string name,
  *       not supported - and such a function can't be used as 'command-line option' prototype.
  */
 template<class RetType, typename P1>
-inline int cmd_line_parser::add_option(RetType function_ptr(P1),
-                                       std::string name,
-                                       std::string description)
+inline void cmd_line_parser::add_option(RetType function_ptr(P1), std::string name,
+                std::string description)
 {
     STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P1);
-    return add_option(
-            new option_1_param<typeof(function_ptr), P1>(function_ptr, name),
-            description);
+    add_option(new option_1_param<RetType (*)(P1), P1>(function_ptr, name), description);
 }
 
 /**
@@ -1996,16 +2229,12 @@ inline int cmd_line_parser::add_option(RetType function_ptr(P1),
  *       not supported - and such a function can't be used as 'command-line option' prototype.
  */
 template<class RetType, typename P1, typename P2>
-inline int cmd_line_parser::add_option(RetType function_ptr(P1, P2),
-                                       std::string name,
-                                       std::string description)
+inline void cmd_line_parser::add_option(RetType function_ptr(P1, P2), std::string name,
+                std::string description)
 {
     STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P1);
     STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P2);
-    return add_option(
-            new option_2_params<typeof(function_ptr), P1, P2>(function_ptr,
-                                                              name),
-            description);
+    add_option(new option_2_params<RetType (*)(P1, P2), P1, P2>(function_ptr, name), description);
 }
 
 /**
@@ -2015,17 +2244,14 @@ inline int cmd_line_parser::add_option(RetType function_ptr(P1, P2),
  * Description is similar to other similar add_option method templates.
  */
 template<class RetType, typename P1, typename P2, typename P3>
-inline int cmd_line_parser::add_option(RetType function_ptr(P1, P2, P3),
-                                       std::string name,
-                                       std::string description)
+inline void cmd_line_parser::add_option(RetType function_ptr(P1, P2, P3), std::string name,
+                std::string description)
 {
     STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P1);
     STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P2);
     STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P3);
-    return add_option(
-            new option_3_params<typeof(function_ptr), P1, P2, P3>(function_ptr,
-                                                                  name),
-            description);
+    add_option(new option_3_params<RetType (*)(P1, P2, P3), P1, P2, P3>(function_ptr, name),
+               description);
 }
 
 /**
@@ -2035,18 +2261,15 @@ inline int cmd_line_parser::add_option(RetType function_ptr(P1, P2, P3),
  * Description is similar to other similar add_option method templates.
  */
 template<class RetType, typename P1, typename P2, typename P3, typename P4>
-inline int cmd_line_parser::add_option(RetType function_ptr(P1, P2, P3, P4),
-                                       std::string name,
-                                       std::string description)
+inline void cmd_line_parser::add_option(RetType function_ptr(P1, P2, P3, P4), std::string name,
+                std::string description)
 {
     STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P1);
     STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P2);
     STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P3);
     STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P4);
-    return add_option(
-            new option_4_params<typeof(function_ptr), P1, P2, P3, P4>(
-                    function_ptr, name),
-            description);
+    add_option(new option_4_params<RetType (*)(P1, P2, P3, P4), P1, P2, P3, P4>(function_ptr, name),
+               description);
 }
 
 /**
@@ -2057,21 +2280,17 @@ inline int cmd_line_parser::add_option(RetType function_ptr(P1, P2, P3, P4),
  *        In fact, 5 is crazy already, but feel free to copy-paste-extend more templates if you really need more :P
  * Description is similar to other similar add_option method templates.
  */
-template<class RetType, typename P1, typename P2, typename P3, typename P4,
-        typename P5>
-inline int cmd_line_parser::add_option(RetType function_ptr(P1, P2, P3, P4, P5),
-                                       std::string name,
-                                       std::string description)
+template<class RetType, typename P1, typename P2, typename P3, typename P4, typename P5>
+inline void cmd_line_parser::add_option(RetType function_ptr(P1, P2, P3, P4, P5), std::string name,
+                std::string description)
 {
     STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P1);
     STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P2);
     STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P3);
     STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P4);
     STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P5);
-    return add_option(
-            new option_5_params<typeof(function_ptr), P1, P2, P3, P4, P5>(
-                    function_ptr, name),
-            description);
+    add_option(new option_5_params<RetType (*)(P1, P2, P3, P4, P5), P1, P2, P3, P4, P5>(function_ptr, name),
+               description);
 }
 
 /**
@@ -2088,14 +2307,12 @@ inline int cmd_line_parser::add_option(RetType function_ptr(P1, P2, P3, P4, P5),
  *         This id can be used against cmd_line_parser::run() return to see if this option has executed.
  */
 template<class RetType, typename ObjType>
-inline int cmd_line_parser::add_option(RetType function_ptr(ObjType*),
-                                       ObjType* obj_address, std::string name,
-                                       std::string description)
+inline void cmd_line_parser::add_option(RetType function_ptr(ObjType*), ObjType* obj_address,
+                std::string name, std::string description)
 {
-    return add_option(
-            new option_no_params_pass_obj<typeof(function_ptr), ObjType>(
-                    function_ptr, obj_address, name),
-            description);
+    add_option(new option_no_params_pass_obj<RetType (*)(ObjType*), ObjType>(function_ptr,
+                                                                            obj_address, name),
+               description);
 }
 
 /**
@@ -2116,15 +2333,13 @@ inline int cmd_line_parser::add_option(RetType function_ptr(ObjType*),
  *       not supported - and such a function can't be used as 'command-line option' prototype.
  */
 template<class RetType, typename ObjType, typename P1>
-inline int cmd_line_parser::add_option(RetType function_ptr(ObjType*, P1),
-                                       ObjType* obj_address, std::string name,
-                                       std::string description)
+inline void cmd_line_parser::add_option(RetType function_ptr(ObjType*, P1), ObjType* obj_address,
+                std::string name, std::string description)
 {
     STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P1);
-    return add_option(
-            new option_1_param_pass_obj<typeof(function_ptr), ObjType, P1>(
-                    function_ptr, obj_address, name),
-            description);
+    add_option(new option_1_param_pass_obj<RetType (*)(ObjType*, P1), ObjType, P1>(function_ptr,
+                                                                              obj_address, name),
+               description);
 }
 
 /**
@@ -2134,16 +2349,15 @@ inline int cmd_line_parser::add_option(RetType function_ptr(ObjType*, P1),
  * Description is similar to other add_option method templates that take ObjType parameter.
  */
 template<class RetType, typename ObjType, typename P1, typename P2>
-inline int cmd_line_parser::add_option(RetType function_ptr(ObjType*, P1, P2),
-                                       ObjType* obj_address, std::string name,
-                                       std::string description)
+inline void cmd_line_parser::add_option(RetType function_ptr(ObjType*, P1, P2),
+                ObjType* obj_address, std::string name, std::string description)
 {
     STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P1);
     STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P2);
-    return add_option(
-            new option_2_params_pass_obj<typeof(function_ptr), ObjType, P1, P2>(
-                    function_ptr, obj_address, name),
-            description);
+    add_option(new option_2_params_pass_obj<RetType (*)(ObjType*, P1, P2), ObjType, P1, P2>(function_ptr,
+                                                                                   obj_address,
+                                                                                   name),
+               description);
 }
 
 /**
@@ -2153,18 +2367,17 @@ inline int cmd_line_parser::add_option(RetType function_ptr(ObjType*, P1, P2),
  * Description is similar to other add_option method templates that take ObjType parameter.
  */
 template<class RetType, typename ObjType, typename P1, typename P2, typename P3>
-inline int cmd_line_parser::add_option(
-        RetType function_ptr(ObjType*, P1, P2, P3), ObjType* obj_address,
-        std::string name, std::string description)
+inline void cmd_line_parser::add_option(RetType function_ptr(ObjType*, P1, P2, P3),
+                ObjType* obj_address, std::string name, std::string description)
 {
-    //
+//
     STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P1);
     STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P2);
     STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P3);
-    return add_option(
-            new option_3_params_pass_obj<typeof(function_ptr), ObjType, P1, P2,
-                    P3>(function_ptr, obj_address, name),
-            description);
+    add_option(new option_3_params_pass_obj<RetType (*)(ObjType*, P1, P2, P3), ObjType, P1, P2, P3>(function_ptr,
+                                                                                       obj_address,
+                                                                                       name),
+               description);
 }
 
 /**
@@ -2175,20 +2388,17 @@ inline int cmd_line_parser::add_option(
  *        In fact, 5 is crazy already, but feel free to copy-paste-extend more templates if you really need more :P
  * Description is similar to other add_option method templates that take ObjType parameter.
  */
-template<class RetType, typename ObjType, typename P1, typename P2, typename P3,
-        typename P4>
-inline int cmd_line_parser::add_option(
-        RetType function_ptr(ObjType*, P1, P2, P3, P4), ObjType* obj_address,
-        std::string name, std::string description)
+template<class RetType, typename ObjType, typename P1, typename P2, typename P3, typename P4>
+inline void cmd_line_parser::add_option(RetType function_ptr(ObjType*, P1, P2, P3, P4),
+                ObjType* obj_address, std::string name, std::string description)
 {
     STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P1);
     STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P2);
     STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P3);
     STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P4);
-    return add_option(
-            new option_4_params_pass_obj<typeof(function_ptr), ObjType, P1, P2,
-                    P3, P4>(function_ptr, obj_address, name),
-            description);
+    add_option(new option_4_params_pass_obj<RetType (*)(ObjType*, P1, P2, P3, P4), ObjType, P1, P2, P3, P4>(
+                    function_ptr, obj_address, name),
+               description);
 }
 
 #endif /* CMD_LINE_OPTIONS_ */
