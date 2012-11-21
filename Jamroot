@@ -8,7 +8,7 @@ use-project boost : $(BOOST_ROOT) ;
 
 #using gcc ;
 
-#build-project  test ;
+build-project  test ;
 
 exe example0
   :

@@ -1,0 +1,25 @@
+
+project unit_tests
+  : requirements
+    <include>.
+    <include>../
+    <include>catch/single_include
+
+    <define>DEBUG
+    <define>TESTING
+  ;
+
+obj test_options_definitions
+  :
+  test_options_definitions.cpp 
+  
+  ;
+
+test-suite test_suite
+  :
+    [ run  test_options_one_param.cpp test_options_definitions ]
+
+  ;
+
+
+
