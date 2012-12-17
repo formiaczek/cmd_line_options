@@ -856,7 +856,9 @@ public:
      */
     static std::string usage()
     {
-        return param_extractor<ParamType>::usage() + "(optional)";
+        std::stringstream usg;
+        usg << param_extractor<ParamType>::usage() << "(optional=" << default_val <<")";
+        return usg.str();
     }
 };
 
@@ -1653,6 +1655,7 @@ public:
 
         if (default_option != NULL)
         {
+            res << "\n " << default_option->descr;
             res << "\n     " << "usage : " << program_name;
             res << " " << default_option->usage;
             res << "\n\n";
@@ -1701,7 +1704,7 @@ public:
     {
         try
         {
-            try_adding_dependent_options(option_name, list_of_required_options,
+            try_to_add_dependent_options(option_name, list_of_required_options,
                                          &option::add_required_option);
         } catch (option_error& err)
         {
@@ -1721,7 +1724,7 @@ public:
     {
         try
         {
-            try_adding_dependent_options(option_name, list_of_not_wanted_options,
+            try_to_add_dependent_options(option_name, list_of_not_wanted_options,
                                          &option::add_not_wanted_option);
         } catch (option_error& err)
         {
@@ -1787,23 +1790,14 @@ public:
 
         if (default_option != NULL)
         {
-            if (is_it_help(cmd_line))
-            {
-                display_help();
+            if(!handle_default_option(cmd_line))
+                {
+                // will return false if it's help or error extracting
+                // params. No point to contiune any further for default option
+                // (otherwise - if returns true: following loop would extract
+                // other (non-option) params from cmd_line etc.
                 return false;
-            }
-            else
-            {
-                try
-                {
-                    try_to_extract_params(default_option, cmd_line);
-                    result = true;
-                } catch (option_error& e)
-                {
-                    std::cout << e.what() << std::endl;
-                    return false;
                 }
-            }
         }
 
         bool found = false;
@@ -1819,38 +1813,11 @@ public:
             }
         } while (found);
 
-        if (default_option != NULL)
-        {
-            default_option->execute();
-        }
-        else
-        {
-            std::vector<std::string>::iterator i;
-            for (i = execute_list.begin(); i != execute_list.end(); i++)
-            {
-                try
-                {
-                    options[*i]->check_if_valid_with_these_options(execute_list);
-                } catch (option_error& e)
-                {
-                    std::cout << e.what() << std::endl;
 
-                    // skip any execution if options were not right.
-                    execute_list.clear();
-                    break;
-                }
-            }
+        result = check_options_and_execute();
 
-            if (execute_list.size())
-            {
-                for (i = execute_list.begin(); i != execute_list.end(); i++)
-                {
-                    options[*i]->execute();
-                }
-                result = true;
-            }
-        }
-
+        // regardless of result from options - execute other_args_handler
+        // and update result if successful
         if (other_args_handler != NULL && other_args.size() > 0)
         {
             other_args_handler(other_args);
@@ -1952,6 +1919,7 @@ protected:
                     else
                     {
                         default_option = a;
+                        default_option->set_description(description);
                     }
                 }
                 else
@@ -2071,6 +2039,9 @@ protected:
 
     /**
      * @brief Internal method to check if there are more options in the stream
+     *        IF there are any, true will be returned and option list will be stored
+     *        in the execute_list. Additionally - if other_args_handler is not NULL
+     *        any unrecognised options will be added to other_args.
      * @returns true if new option has been found, false - otherwise.
      * @throws option_error if option is not valid or parameters for the option
      *         that has been found are not correct.
@@ -2100,7 +2071,7 @@ protected:
             {
                 if (option.length() != 0)
                 {
-                    if (other_args_handler == NULL)
+                    if (other_args_handler == NULL/* && default_option == NULL*/)
                     {
                         throw option_error(
                                         "\"%s\": no such option, try \"?\" or \"help\" to see usage.\n",
@@ -2127,7 +2098,7 @@ protected:
      * @brief Internal method to add selected list of option to either required or not wanted list.
      * @throws option_error any of specified options is not valid.
      */
-    void try_adding_dependent_options(std::string& to_option, std::string& list_of_options,
+    void try_to_add_dependent_options(std::string& to_option, std::string& list_of_options,
                     operation_type add_dependent_option)
     {
         OptionContainer::iterator i = options.find(to_option);
@@ -2161,6 +2132,67 @@ protected:
             next_option = get_next_token(s, " ,;\"\t\n\r");
         }
     }
+
+    bool handle_default_option(std::stringstream& cmd_line)
+    {
+        bool result = false;
+        if (is_it_help(cmd_line))
+        {
+            display_help();
+        }
+        else
+        {
+            try
+            {
+                try_to_extract_params(default_option, cmd_line);
+                result = true;
+            } catch (option_error& e)
+            {
+                std::cout << e.what() << std::endl;
+            }
+        }
+        return result;
+    }
+
+
+    bool check_options_and_execute()
+    {
+        bool result = false;
+        if (default_option != NULL)
+        {
+            default_option->execute();
+            result = true;
+        }
+        else
+        {
+            std::vector<std::string>::iterator i;
+            for (i = execute_list.begin(); i != execute_list.end(); i++)
+            {
+                try
+                {
+                    options[*i]->check_if_valid_with_these_options(execute_list);
+                } catch (option_error& e)
+                {
+                    std::cout << e.what() << std::endl;
+
+                    // should skip any execution if options were not right.
+                    execute_list.clear();
+                    break;
+                }
+            }
+
+            if (execute_list.size())
+            {
+                for (i = execute_list.begin(); i != execute_list.end(); i++)
+                {
+                    options[*i]->execute();
+                }
+                result = true;
+            }
+        }
+        return result;
+    }
+
 
     OptionContainer options;
     std::string description;
