@@ -1586,6 +1586,207 @@ protected:
     P4 p4;
 };
 
+
+/**
+ * @brief Wrapper class used to keep options and information about their groups etc.
+ */
+class grouped_options
+{
+public:
+    /**
+     * @brief TYpe for container used to keep options.
+     */
+    typedef std::map<std::string, option*> OptionContainer;
+
+    /**
+     * @brief Destructor. Cleans up allocated options.
+     */
+    ~grouped_options()
+    {
+        OptionContainer::iterator i;
+        for (i = options.begin(); i != options.end(); i++)
+        {
+            delete i->second;
+        }
+    }
+
+    /**
+     * @brief Adds new group for options. Once this method is called, all options that
+     *        Are added following this call will be added to this group (and listed under
+     *        this group in help message).
+     */
+    void add_new_group(std::string name, std::string description = "")
+    {
+        groups.push_back(group(name, description));
+    }
+
+    /**
+     * @brief Adds new option.
+     */
+    void add_new_option(option* new_option)
+    {
+        if(new_option)
+        {
+            if(!groups.size())
+            {
+                add_new_group("Options");
+            }
+
+            std::string name = new_option->name;
+            if(options.find(name) == options.end())
+            {
+                options.insert(std::make_pair(name, new_option));
+                std::vector<group>::iterator g = groups.end() - 1;
+                g->add_option(name);
+            }
+        }
+    }
+
+    /**
+     * @brief Fins option of a given name.
+     * @param name - name of the option to find.
+     * @return  - pointer to option if found, NULL otherwise.
+     */
+    option* find_option(std::string name)
+    {
+        option* result = NULL;
+        OptionContainer::iterator i = options.find(name);
+        if(name.length() && i != options.end())
+        {
+            result = i->second;
+        }
+        return result;
+    }
+
+    /**
+     * @brief Returns size of options.
+     */
+    size_t size()
+    {
+        return options.size();
+    }
+
+    /**
+     * @brief Creates help using all information about options and their groups.
+     * @param help_content - stream into which help message is inserted.
+     */
+    void create_help(std::stringstream& help_content)
+    {
+        size_t max_cmd_len = 0;
+        OptionContainer::iterator i;
+        for (i = options.begin(); i != options.end(); i++)
+        {
+            const std::string& s = i->first;
+            max_cmd_len = std::max<size_t>(max_cmd_len, s.length());
+        }
+        max_cmd_len += 1;
+
+        std::vector<group>::iterator g;
+        for(g = groups.begin(); g != groups.end(); g++)
+        {
+            help_content << "\n" << g->name();
+            if(g->description().length())
+                {
+                help_content << "(" << g->description() << ")";
+                }
+            help_content << ":\n";
+
+            group::options_iterator oi;
+            for (oi = g->options_begin(); oi != g->options_end(); oi++)
+            {
+                const std::string& s = *oi;
+                option* o = find_option(s);
+
+                std::string indent;
+                indent.resize(max_cmd_len - s.length(), ' ');
+                help_content << "  " << s << indent << ": ";
+                help_content << o->descr << "\n";
+                if (max_cmd_len > 4)
+                {
+                    indent.resize(max_cmd_len - 4, ' ');
+                }
+                help_content << indent << "usage : ";
+                help_content << s << " " << o->usage;
+                help_content << "\n\n";
+            }
+        }
+    }
+
+
+protected:
+
+    /**
+     * @brief Helper class to allow associating options with groups.
+     */
+    class group
+    {
+    public:
+        /**
+         * @brief Constructor.
+         * @param name - name of the group.
+         * @param (optional) description of the option group
+         */
+        explicit group(std::string name, std::string description = "") :
+            group_name(name), group_description(description)
+        {
+        }
+
+        /**
+         * @brief Returns name of the group.
+         */
+        std::string name()
+        {
+            return group_name;
+        }
+
+        /**
+         * @brief Returns description of the group.
+         */
+        std::string description()
+        {
+            return group_description;
+        }
+
+        /**
+         * @brief Adds option to the group.
+         */
+        void add_option(std::string name)
+        {
+            option_names.push_back(name);
+        }
+
+        /**
+         * @brief Iterator for options.
+         */
+        typedef std::vector<std::string>::iterator options_iterator;
+
+        /**
+         * @brief Helper for iterators  to allow iterating through options within this group.
+         */
+        options_iterator options_begin()
+        {
+            return option_names.begin();
+        }
+
+        /**
+         * @brief Helper for iterators  to allow iterating through options within this group.
+         */
+        options_iterator options_end()
+        {
+            return option_names.end();
+        }
+
+    private:
+        std::string group_name;
+        std::string group_description;
+        std::vector<std::string> option_names;
+    };
+
+    std::map<std::string, option*> options;
+    std::vector<group> groups;
+};
+
+
 /**
  * @brief This is the main class of this library.
  */
@@ -1596,7 +1797,7 @@ public:
      * @brief Options should be unique and referred by the key, so they are kept
      *        by the parser using a map.
      */
-    typedef std::map<std::string, option*> OptionContainer;
+    typedef grouped_options OptionContainer;
 
     /**
      * @brief Default constructor.
@@ -1606,17 +1807,6 @@ public:
     {
     }
 
-    /**
-     * @brief Destructor. Cleans-up, dealocating all the options (as they were created on the heap).
-     */
-    ~cmd_line_parser()
-    {
-        OptionContainer::iterator i;
-        for (i = options.begin(); i != options.end(); i++)
-        {
-            delete i->second;
-        }
-    }
 
     /**
      * @brief Method to set the description of the program.
@@ -1637,6 +1827,17 @@ public:
     }
 
     /**
+     * @brief adds new group of options. All options that are added following this call
+     *        will be associated with this group. If this method is not called before
+     *        first option is added- a default group called "Options" is created
+     *        (although it is still valid to add new option groups in such case).
+     */
+    void add_option_group(std::string group_name, std::string description="")
+    {
+        options.add_new_group(group_name, description);
+    }
+
+    /**
      * @brief Method to display help. This involves generating and printing to stdout:
      *        - name of the executable (from argv[0])
      *        - version
@@ -1645,53 +1846,28 @@ public:
      */
     void display_help()
     {
-        OptionContainer::iterator i;
-        std::stringstream res;
+        std::stringstream help;
 
-        res << "\n" << program_name;
-        res << ", version: " << version << "\n\n";
-        res << description << std::endl;
-        res << "\nUse \"?\", \"-h\" or \"--help\" to print more information.\n";
+        help << "\n" << program_name;
+        help << ", version: " << version << "\n\n";
+        help << description << std::endl;
+        help << "\nUse \"?\", \"-h\" or \"--help\" to print more information.\n";
 
         if (default_option != NULL)
         {
-            res << "\n " << default_option->descr;
-            res << "\n     " << "usage : " << program_name;
-            res << " " << default_option->usage;
-            res << "\n\n";
+            help << "\n " << default_option->descr;
+            help << "\n     " << "usage : " << program_name;
+            help << " " << default_option->usage;
+            help << "\n\n";
         }
         else
         {
-            res << "\nAvailable options:\n\n";
-
-            size_t max_cmd_len = 0;
-            for (i = options.begin(); i != options.end(); i++)
-            {
-                const std::string& s = i->first;
-                max_cmd_len = std::max<size_t>(max_cmd_len, s.length());
-            }
-
-            max_cmd_len += 1;
-
-            for (i = options.begin(); i != options.end(); i++)
-            {
-                const std::string& s = i->first;
-                option*& option = i->second;
-                std::string indent;
-                indent.resize(max_cmd_len - s.length(), ' ');
-                res << "  " << s << indent << ": ";
-                res << option->descr << "\n";
-                if (max_cmd_len > 4)
-                {
-                    indent.resize(max_cmd_len - 4, ' ');
-                }
-                res << indent << "usage : " << program_name;
-                res << " " << s << " " << option->usage;
-                res << "\n\n";
-            }
+           options.create_help(help);
         }
-        std::cout << res.str();
+
+        std::cout << help.str();
     }
+
 
     /**
      * @brief Use this method to specify dependent options that also need to be present
@@ -1741,8 +1917,8 @@ public:
      */
     void setup_option_as_standalone(std::string option_name)
     {
-        OptionContainer::iterator i = options.find(option_name);
-        if (i == options.end())
+        option* o = options.find_option(option_name);
+        if (o == NULL)
         {
             throw option_error(
                             "error: adding dependencies for option \"%s\" failed, option is not valid",
@@ -1750,7 +1926,7 @@ public:
         }
         else
         {
-            i->second->set_as_standalone();
+            o->set_as_standalone();
         }
     }
 
@@ -1893,13 +2069,13 @@ protected:
                 if (default_option == NULL)
                 {
                     a->set_description(description);
-                    if (options.find(a->name) != options.end())
+                    if (options.find_option(a->name) != NULL) // TODO: perhaps should move it to add_new_option() ?
                     {
                         err << __FUNCTION__ << "(): option \"" << a->name << "\" already exists";
                     }
                     else
                     {
-                        options.insert(std::make_pair(a->name, a));
+                        options.add_new_option(a);
                     }
                 }
                 else
@@ -2048,7 +2224,7 @@ protected:
      */
     bool could_find_next_option(std::stringstream& from)
     {
-        std::string option;
+        std::string option_name;
         bool found = false;
 
         if (is_it_help(from))
@@ -2058,28 +2234,28 @@ protected:
         }
         else
         {
-            option = get_next_token(from);
-            OptionContainer::iterator i = options.find(option);
-            if (option.length() && i != options.end())
-            {
+            option_name = get_next_token(from);
 
-                try_to_extract_params(i->second, from);
-                execute_list.push_back(option);
-                found = true;
-            }
-            else
+            if (option_name.length() != 0)
             {
-                if (option.length() != 0)
+                option* o = options.find_option(option_name);
+                if(o != NULL)
+                {
+                    try_to_extract_params(o, from);
+                    execute_list.push_back(option_name); // TODO: could really make copies of option* objects..
+                    found = true;
+                }
+                else
                 {
                     if (other_args_handler == NULL/* && default_option == NULL*/)
                     {
                         throw option_error(
                                         "\"%s\": no such option, try \"?\" or \"help\" to see usage.\n",
-                                        option.c_str());
+                                        option_name.c_str());
                     }
                     else
                     {
-                        other_args.push_back(option);
+                        other_args.push_back(option_name);
                         found = true;
                     }
                 }
@@ -2101,35 +2277,34 @@ protected:
     void try_to_add_dependent_options(std::string& to_option, std::string& list_of_options,
                     operation_type add_dependent_option)
     {
-        OptionContainer::iterator i = options.find(to_option);
-        if (i == options.end())
+        option* curr_option = options.find_option(to_option);
+        if (curr_option == NULL)
         {
             throw option_error(
                             "error: adding dependencies for option \"%s\" failed, option is not valid",
                             to_option.c_str());
         }
 
-        option*& curr_option = i->second;
 
         // now extract options from the list, check and add them to current one
         std::stringstream s(list_of_options);
-        std::string next_option;
+        std::string next_option_name;
 
-        next_option = get_next_token(s, " ,;\"\t\n\r");
-        while (next_option.length() > 0)
+        next_option_name = get_next_token(s, " ,;\"\t\n\r");
+        while (next_option_name.length() > 0)
         {
-            i = options.find(next_option);
-            if (i != options.end())
+            option* other_option = options.find_option(next_option_name);
+            if (other_option != NULL)
             {
-                (curr_option->*add_dependent_option)(next_option);
+                (curr_option->*add_dependent_option)(next_option_name);
             }
             else
             {
                 throw option_error(
                                 "error: adding dependencies for option \"%s\" failed: option \"%s\" is not valid",
-                                to_option.c_str(), next_option.c_str());
+                                to_option.c_str(), next_option_name.c_str());
             }
-            next_option = get_next_token(s, " ,;\"\t\n\r");
+            next_option_name = get_next_token(s, " ,;\"\t\n\r");
         }
     }
 
@@ -2170,7 +2345,11 @@ protected:
             {
                 try
                 {
-                    options[*i]->check_if_valid_with_these_options(execute_list);
+                    option* option_to_execute = options.find_option(*i);
+                    if(option_to_execute != NULL) // TODO: assert? it's not possible that this is NULL, unless a bug is introduced during development etc.
+                        {
+                        option_to_execute->check_if_valid_with_these_options(execute_list);
+                        }
                 } catch (option_error& e)
                 {
                     std::cout << e.what() << std::endl;
@@ -2185,7 +2364,12 @@ protected:
             {
                 for (i = execute_list.begin(); i != execute_list.end(); i++)
                 {
-                    options[*i]->execute();
+                    option* option_to_execute = options.find_option(*i);
+
+                    if(option_to_execute) // TODO: similarly here..
+                        {
+                        option_to_execute->execute();
+                        }
                 }
                 result = true;
             }

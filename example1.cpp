@@ -77,17 +77,24 @@ int main(int argc, char **argv)
     parser.set_description("This is an example of how to use cmd_line_options library\n"
                            "Author: Lukasz Forynski (lukasz.forynski@gmail.com)");
 
+
+    parser.add_option_group("Printing options");
     parser.add_option(hello_few_times, "hello_few_times", "prints \"hello\" a specified number of times");
-    parser.add_option(do_something, "-d_sth", "does something (...)");
 
     MyObject my_obj;
     parser.add_option(update_my_object, &my_obj, "update_my_object", "Updates something (..)");
+
 
     // If someone is really lazy - he can also add an option using SPLIT_TO_NAME_AND_STR
     // macro. This will cause the function name to be used as a name for the option, e.g.:
     parser.add_option(SPLIT_TO_NAME_AND_STR(print_hello_world), "prints \"hello world\"");
 
     parser.add_option(say, "say", "will just print what you typed");
+
+
+    parser.add_option_group("Other options");
+    parser.add_option(do_something, "-d_sth", "does something (...)");
+
 
     // this starts the parser..
     // All cmd-line parameters will be executed, and if options are recognised/params for them
