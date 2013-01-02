@@ -86,6 +86,8 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
+#define MAX_LINE_SIZE 80
+
 #define SPLIT_TO_NAME_AND_STR(identifier) identifier, #identifier
 
 // in case there's no support for c++0x - below some
@@ -1068,7 +1070,6 @@ public:
 
     Container required_options;
     Container not_wanted_options;
-
 };
 
 /**
@@ -1681,6 +1682,8 @@ public:
         }
         max_cmd_len += 1;
 
+
+
         std::vector<group>::iterator g;
         for(g = groups.begin(); g != groups.end(); g++)
         {
@@ -1692,21 +1695,39 @@ public:
             help_content << ":\n";
 
             group::options_iterator oi;
+
             for (oi = g->options_begin(); oi != g->options_end(); oi++)
             {
                 const std::string& s = *oi;
                 option* o = find_option(s);
 
-                std::string indent;
-                indent.resize(max_cmd_len - s.length(), ' ');
-                help_content << "  " << s << indent << ": ";
-                help_content << o->descr << "\n";
-                if (max_cmd_len > 4)
+                int indent_size = max_cmd_len - s.length();
+
+                help_content << "  " << s ; // option name
+                help_content << std::string(indent_size, ' ') << ": ";
+
+                std::stringstream d(o->descr);
+                std::string next_desc_part;
+                size_t curr_desc_len = 0;
+                do
                 {
-                    indent.resize(max_cmd_len - 4, ' ');
-                }
-                help_content << indent << "usage : ";
-                help_content << s << " " << o->usage;
+                    d >> next_desc_part;
+                    curr_desc_len += next_desc_part.length();
+
+                    if (curr_desc_len >= MAX_LINE_SIZE - max_cmd_len)
+                    {
+                        help_content << '\n' << std::string(max_cmd_len + 4, ' ');
+                        curr_desc_len = next_desc_part.length();
+                    }
+                    help_content << next_desc_part << " ";
+
+                } while (d.good());
+
+                help_content << "\n";
+
+                indent_size = max_cmd_len > 4 ? max_cmd_len - 4 : max_cmd_len;
+                help_content << std::string(indent_size, ' ');
+                help_content  << "usage : " << s << " " << o->usage;
                 help_content << "\n\n";
             }
         }
@@ -1832,7 +1853,7 @@ public:
      *        first option is added- a default group called "Options" is created
      *        (although it is still valid to add new option groups in such case).
      */
-    void add_option_group(std::string group_name, std::string description="")
+    void add_group(std::string group_name, std::string description="")
     {
         options.add_new_group(group_name, description);
     }
@@ -1869,18 +1890,23 @@ public:
     }
 
 
+//    void setup_required_options(std::string list_of_required_options)
+//    {
+//
+//    }
+
     /**
      * @brief Use this method to specify dependent options that also need to be present
      *        whenever option_name is specified.
      * @param option_name option name, for which dependent options are being specified
-     * @param list_of_required_options string containing list of options (comma/semicolon/space separated)
+     * @param list_of_dependent_options string containing list of options (comma/semicolon/space separated)
      * @throws option_error if any of specified options is not valid (i.e. has not been previously added)
      */
-    void setup_required_options(std::string option_name, std::string list_of_required_options)
+    void setup_dependent_required(std::string option_name, std::string list_of_dependent_options)
     {
         try
         {
-            try_to_add_dependent_options(option_name, list_of_required_options,
+            try_to_add_dependent_options(option_name, list_of_dependent_options,
                                          &option::add_required_option);
         } catch (option_error& err)
         {
@@ -1896,7 +1922,7 @@ public:
      //     * @param list_of_not_wanted_options string containing list of options (comma/semicolon/space separated)
      * @throws option_error if any of specified options is not valid (i.e. has not been previously added)
      */
-    void setup_not_wanted_options(std::string option_name, std::string list_of_not_wanted_options)
+    void setup_dependent_not_wanted(std::string option_name, std::string list_of_not_wanted_options)
     {
         try
         {
@@ -2242,7 +2268,7 @@ protected:
                 if(o != NULL)
                 {
                     try_to_extract_params(o, from);
-                    execute_list.push_back(option_name); // TODO: could really make copies of option* objects..
+                    execute_list.push_back(option_name); // TODO: if options can be specified more than once - we should really make copies of option* objects here..
                     found = true;
                 }
                 else
@@ -2614,7 +2640,7 @@ inline void cmd_line_parser::add_option(RetType function_ptr(ObjType*, P1, P2, P
     STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P4);
     add_option(new option_4_params_pass_obj<RetType (*)(ObjType*, P1, P2, P3, P4), ObjType, P1, P2, P3, P4>(
                     function_ptr, obj_address, name),
-               description);
+                    description);
 }
 
 #endif /* CMD_LINE_OPTIONS_ */

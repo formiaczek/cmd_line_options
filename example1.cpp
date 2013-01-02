@@ -47,7 +47,7 @@ struct MyObject
 int update_my_object(MyObject* obj_ptr, std::string new_str)
 {
     obj_ptr->str = new_str;
-    return 1; // note, that fuctions can various return type. At the moment it is not used by the framework.
+    return 1; // note, that functions can various return type. At the moment it is not used by the framework.
 }
 
 /**
@@ -78,7 +78,7 @@ int main(int argc, char **argv)
                            "Author: Lukasz Forynski (lukasz.forynski@gmail.com)");
 
 
-    parser.add_option_group("Printing options");
+    parser.add_group("Printing options");
     parser.add_option(hello_few_times, "hello_few_times", "prints \"hello\" a specified number of times");
 
     MyObject my_obj;
@@ -92,9 +92,8 @@ int main(int argc, char **argv)
     parser.add_option(say, "say", "will just print what you typed");
 
 
-    parser.add_option_group("Other options");
+    parser.add_group("Other options");
     parser.add_option(do_something, "-d_sth", "does something (...)");
-
 
     // this starts the parser..
     // All cmd-line parameters will be executed, and if options are recognised/params for them
@@ -116,31 +115,32 @@ int main(int argc, char **argv)
 /* Example output(s):
  ____________________________________
 
- ~$ ./example  ?
+ ~$ example1 ?
 
- example, version: 0.0.1
+ example1, version: 0.0.1
 
  This is an example of how to use cmd_line_options library
  Author: Lukasz Forynski (lukasz.forynski@gmail.com)
 
- Use "?" or "help" to print more information.
+ Use "?", "-h" or "--help" to print more information.
 
- Available options:
+ Printing options:
+   hello_few_times   : prints "hello" a specified number of times
+               usage : hello_few_times <int>
 
- -d_sth            : does something (...)
- usage : example -d_sth <char> <double> <unsigned long>
+   update_my_object  : Updates something (..)
+               usage : update_my_object <string>
 
- hello_few_times   : prints "hello" a specified number of times
- usage : example hello_few_times <int>
+   print_hello_world : prints "hello world"
+               usage : print_hello_world
 
- print_hello_world : prints "hello world"
- usage : example print_hello_world
+   say               : will just print what you typed
+               usage : say <string> <string>
 
- say               : will just print what you typed
- usage : my_prog say <string> <string>
 
- update_my_object  : Updates something (..)
- usage : example update_my_object <int>
+ Other options:
+   -d_sth            : does something (...)
+               usage : -d_sth <char> <double> <unsigned long>
  ____________________________________
 
  $ ./example  -d_sth wfa

@@ -15,3 +15,8 @@ bin/*
 test/bin/*
 *.exe
 *.pdb
+
+example0
+example1
+example2
+example3

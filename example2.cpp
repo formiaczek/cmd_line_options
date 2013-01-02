@@ -69,9 +69,9 @@ int main(int argc, char **argv)
 
     // setup required options - in form of a comma/colon/semicolon or space separated list.
     // All options used - should be valid (i.e. should have been added already)
-    parser.setup_required_options("a_b", "aa, bb");
-    parser.setup_not_wanted_options("a_only", "bb, a_b, standalone");
-    parser.setup_not_wanted_options("b_only", "aa, a_b, standalone");
+    parser.setup_dependent_required("a_b", "aa, bb");
+    parser.setup_dependent_not_wanted("a_only", "bb, a_b, standalone");
+    parser.setup_dependent_not_wanted("b_only", "aa, a_b, standalone");
 
     // this adds option as a standalone (i.e. it must not be specified with any other option)
     parser.setup_option_as_standalone("standalone");
@@ -95,7 +95,7 @@ Author: Lukasz Forynski (lukasz.forynski@gmail.com)
 
 Use "?" or "help" to print more information.
 
-Available options:
+Options:
 
   a_b        : option that requires specifying another two..
        usage : example2 a_b

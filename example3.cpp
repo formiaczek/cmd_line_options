@@ -99,7 +99,30 @@ int main(int argc, char **argv)
     return 0;
 }
 
-/* Example output:s
+/* Example output:
+$ ./example3 ?
+
+example3, version: 0.0.1
+
+This is an example of how to use cmd_line_options library
+with the mix of defined-options and other arguments. All arguments
+that are not recognised as option / params for defined options
+will be passed to a registered handler after all option-handlers have
+executed
+Author: Lukasz Forynski (lukasz.forynski@gmail.com)
+
+Use "?", "-h" or "--help" to print more information.
+
+Options:
+  hello_few_times : prints "hello" a specified number of times
+            usage : hello_few_times <int>
+
+  hello           : prints "hello world"
+            usage : hello
+
+  --dp            : optional parameter..
+            usage : --dp <int>(optional=14)
+
  ____________________________________
 
  */
