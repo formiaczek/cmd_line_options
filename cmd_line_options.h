@@ -225,6 +225,73 @@ inline std::string get_next_token(std::stringstream& from, std::string delimiter
 }
 
 /**
+ * @brief Helper function template that returns intersection of two vectors.
+ * @param v1 first vector. Precondition: has to be sorted.
+ * @param v2 second vector.
+ * @return intersection of v1 and v2 (by value).
+ */
+template <class T>
+inline std::vector<T> get_vect_intersection(std::vector<T>& v1, std::vector<T>& v2)
+{
+    std::vector<T> tmp(
+                    std::max<size_t>(v1.size(), v2.size()));
+
+    std::vector<std::string> isect = std::vector<T>(
+                    tmp.begin(),
+                    std::set_intersection(v1.begin(), v1.end(),
+                                          v2.begin(), v2.end(),
+                                          tmp.begin()));
+    return isect;
+}
+
+
+/**
+ * @brief Helper function template that returns difference between two vectors.
+ * @param v1 first vector. Precondition: has to be sorted.
+ * @param v2 second vector.
+ * @return difference between v1 and v2 (by value).
+ */
+template <class T>
+inline std::vector<T> get_vect_difference(std::vector<T>& v1, std::vector<T>& v2)
+{
+    std::vector<T> tmp(
+                    std::max<size_t>(v1.size(), v2.size()));
+
+    std::vector<std::string> isect = std::vector<T>(
+                    tmp.begin(),
+                    std::set_difference(v1.begin(), v1.end(),
+                                          v2.begin(), v2.end(),
+                                          tmp.begin()));
+    return isect;
+}
+
+
+/**
+ * @brief helper template function that merges values of a vector into a string.
+ * @param vect reference to a source vector
+ * @param parenthesis (optional) - default parenthesis in which each of the values will be inserted
+ * @param separator (optional) - separator that will be placed between values
+ * @return resulting string.
+ */
+template <class T>
+inline std::string merge_from_vector(std::vector<T>& vect,
+                                     char parenthesis = '\"',
+                                     char separator=',')
+{
+    std::stringstream result;
+    typename std::vector<T>::iterator i;
+    for (i = vect.begin(); i != vect.end();i++)
+    {
+        if (i != vect.begin())
+        {
+            result << separator << " ";
+        }
+        result << parenthesis << *i << parenthesis;
+    }
+    return result.str();
+}
+
+/**
  * @brief This is a default template for a helper class used to extract parameters.
  *        It must not be used directly (in fact it's purpose is to report compile-time
  *        errors if cmd_line_parser::add_option() is called with a function for which any
@@ -235,7 +302,7 @@ class param_extractor
 {
 public:
     /**
-     * @brief Default constructor. The only reason for it in generic template implementation
+     * @brief Default constructor. The onliy reason for it in generic template implementation
      *        is to create run-time error.
      */
     param_extractor()
@@ -900,7 +967,8 @@ public:
      *         is selected from the command line.
      */
     option(std::string& name) :
-                    required(false), standalone(false), name(name)
+                    standalone(false),
+                    name(name)
     {
     }
     /**
@@ -918,31 +986,39 @@ public:
      */
     virtual void extract_params(std::stringstream& cmd_line_options) = 0;
 
-    void set_option_as_required()
-    {
-        required = true;
-    }
-
+    /**
+     * @brief adds another option that this option requires
+     */
     void add_required_option(std::string option_name)
     {
         required_options.push_back(option_name);
         std::sort(required_options.begin(), required_options.end());
     }
 
+    /**
+     * @brief adds another option that this option must not be specified with.
+     */
     void add_not_wanted_option(std::string option_name)
     {
         not_wanted_options.push_back(option_name);
         std::sort(not_wanted_options.begin(), not_wanted_options.end());
     }
 
+    /**
+     * @brief sets this option as a standalone (i.e. it must not be specified with any other option).
+     */
     void set_as_standalone()
     {
         standalone = true;
     }
 
+    /**
+     * @brief Checks if specified options are valid with this option.
+     * @param all_specified_options - vector of all specified options.
+     * @throws option_error if specified options do not match requirements of this option.
+     */
     void check_if_valid_with_these_options(std::vector<std::string> all_specified_options)
     {
-
         std::stringstream result;
         if (all_specified_options.size())
         {
@@ -950,45 +1026,19 @@ public:
 
             if (required_options.size() && all_specified_options.size())
             {
-                std::vector<std::string> tmp(
-                                std::max<size_t>(all_specified_options.size(), required_options.size()));
-
-                Container isect = Container(
-                                tmp.begin(),
-                                std::set_difference(required_options.begin(),
-                                                    required_options.end(),
-                                                    all_specified_options.begin(),
-                                                    all_specified_options.end(), tmp.begin()));
-
-                Container::iterator res = isect.begin();
-
-                if (isect.size())
+                Container diff = get_vect_difference(required_options,
+                                                     all_specified_options);
+                if (diff.size())
                 {
                     result << "option \"" << name << "\" requires also: ";
-                    for (res = isect.begin(); res != isect.end();)
-                    {
-                        result << "\"" << *res << "\"";
-                        res++;
-                        if (res != isect.end())
-                        {
-                            result << ", ";
-                        }
-                    }
+                    result << merge_from_vector(diff);
                 }
             }
 
             if (not_wanted_options.size())
             {
-                std::vector<std::string> tmp(
-                                std::max<size_t>(all_specified_options.size(), not_wanted_options.size()));
-
-                std::vector<std::string> isect(
-                                tmp.begin(),
-                                std::set_intersection(not_wanted_options.begin(),
-                                                      not_wanted_options.end(),
-                                                      all_specified_options.begin(),
-                                                      all_specified_options.end(), tmp.begin()));
-
+                Container isect = get_vect_intersection(not_wanted_options,
+                                                        all_specified_options);
                 if (isect.size())
                 {
                     if (result.str().size() == 0)
@@ -1000,16 +1050,7 @@ public:
                         result << ", and";
                     }
                     result << " can't be used with: ";
-                    std::vector<std::string>::iterator res;
-                    for (res = isect.begin(); res != isect.end();)
-                    {
-                        result << "\"" << *res << "\"";
-                        res++;
-                        if (res != isect.end())
-                        {
-                            result << ", ";
-                        }
-                    }
+                    result << merge_from_vector(isect);
                 }
             }
 
@@ -1020,19 +1061,10 @@ public:
                     result.str().clear();
                     result << "option \"" << name << "\"";
                     result << " can't be used with other options, but specified with: ";
-                    std::vector<std::string>::iterator res;
-                    for (res = all_specified_options.begin(); res != all_specified_options.end();
-                                    res++)
-                    {
-                        if (*res != name)
-                        {
-                            if (res != all_specified_options.begin())
-                            {
-                                result << ", ";
-                            }
-                            result << "\"" << *res << "\"";
-                        }
-                    }
+                    all_specified_options.erase(std::remove(all_specified_options.begin(),
+                                                            all_specified_options.end(),
+                                                            name), all_specified_options.end());
+                    result << merge_from_vector(all_specified_options);
                 }
             }
         }
@@ -1060,7 +1092,6 @@ public:
      */
     virtual void execute() = 0;
 
-    bool required;
     bool standalone;
     std::string name;
     std::string usage;
@@ -1890,10 +1921,30 @@ public:
     }
 
 
-//    void setup_required_options(std::string list_of_required_options)
-//    {
-//
-//    }
+    void setup_required_options(std::string list_of_required_options)
+    {
+        // now extract options from the list, check and add them to current one
+        std::stringstream s(list_of_required_options);
+        std::string next_option_name;
+
+        next_option_name = get_next_token(s, " ,;\"\t\n\r");
+        while (next_option_name.length() > 0)
+        {
+            option* other_option = options.find_option(next_option_name);
+            if (other_option != NULL)
+            {
+                required_options.push_back(next_option_name);
+                std::sort(required_options.begin(), required_options.end());
+            }
+            else
+            {
+                throw option_error(
+                                "error: setting option \"%s\" as required failed: option not valid",
+                                next_option_name.c_str());
+            }
+            next_option_name = get_next_token(s, " ,;\"\t\n\r");
+        }
+    }
 
     /**
      * @brief Use this method to specify dependent options that also need to be present
@@ -2366,6 +2417,32 @@ protected:
         }
         else
         {
+            if (required_options.size())
+            {
+                std::stringstream result;
+                if (required_options.size())
+                {
+                    std::vector<std::string> isect = get_vect_intersection(required_options, execute_list);
+                    if (isect.size() != required_options.size())
+                    {
+                        result << "required following option(s): \n ";
+                        result << merge_from_vector(required_options) << "\n\n";
+
+                        if(execute_list.size())
+                        {
+                            result << "but specified only:\n ";
+                            result << merge_from_vector(execute_list);
+                        }
+                        else
+                        {
+                            result << "but nothing was specified";
+                        }
+                        std::cout << "error: " << result.str() << "\n\n";
+                        return false;
+                    }
+                }
+            }
+
             std::vector<std::string>::iterator i;
             for (i = execute_list.begin(); i != execute_list.end(); i++)
             {
@@ -2412,6 +2489,7 @@ protected:
     other_arguments_handler other_args_handler;
     std::vector<std::string> other_args;
     std::vector<std::string> execute_list;
+    std::vector<std::string> required_options;
 };
 
 /**

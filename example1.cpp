@@ -95,6 +95,8 @@ int main(int argc, char **argv)
     parser.add_group("Other options");
     parser.add_option(do_something, "-d_sth", "does something (...)");
 
+    parser.setup_required_options("-d_sth, hello_few_times");
+
     // this starts the parser..
     // All cmd-line parameters will be executed, and if options are recognised/params for them
     // properly parsed - appropriate functions will be called in the order they were found during
