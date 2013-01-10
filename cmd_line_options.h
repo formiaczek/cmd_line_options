@@ -1903,12 +1903,11 @@ public:
         help << "\n" << program_name;
         help << ", version: " << version << "\n\n";
         help << description << std::endl;
-        help << "\nUse \"?\", \"-h\" or \"--help\" to print more information.\n";
 
         if (default_option != NULL)
         {
             help << "\n " << default_option->descr;
-            help << "\n     " << "usage : " << program_name;
+            help << "\n\n     " << "Usage : " << program_name;
             help << " " << default_option->usage;
             help << "\n\n";
         }
@@ -1917,6 +1916,7 @@ public:
            options.create_help(help);
         }
 
+        help << "\n Use \"?\", \"-h\" or \"--help\" to print this help message.\n";
         std::cout << help.str();
     }
 
@@ -2266,15 +2266,19 @@ protected:
             } catch (option_error& e)
             {
                 std::stringstream s;
+                int indent_size = 0;
                 if(opt->name.length() > 0)
                 {
                     s << "\nOption: \"" << opt->name << "\": ";
+                    indent_size = opt->name.size();
                 }
                 else
                 {
                     s << "\n " << program_name << ": ";
+                    indent_size = program_name.size();
                 }
-                s << "error while parsing parameters, expected: " << e.what();
+                s << "error while parsing parameters,\n";
+                s << std::string(indent_size + 3, ' ') << "expected: " << e.what();
                 s << "\n\n" << opt->descr << "\n";
                 s << "\n Usage: \n    " << program_name << " ";
                 if(opt->name.length()>0)
