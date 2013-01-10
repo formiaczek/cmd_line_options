@@ -2275,7 +2275,8 @@ protected:
                     s << "\n " << program_name << ": ";
                 }
                 s << "error while parsing parameters, expected: " << e.what();
-                s << "\n\n Usage: \n    " << program_name << " ";
+                s << "\n\n" << opt->descr << "\n";
+                s << "\n Usage: \n    " << program_name << " ";
                 if(opt->name.length()>0)
                     {
                     s << opt->name << " ";
