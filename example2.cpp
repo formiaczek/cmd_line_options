@@ -69,9 +69,9 @@ int main(int argc, char **argv)
 
     // setup required options - in form of a comma/colon/semicolon or space separated list.
     // All options used - should be valid (i.e. should have been added already)
-    parser.setup_dependent_required("a_b", "aa, bb");
-    parser.setup_dependent_not_wanted("a_only", "bb, a_b, standalone");
-    parser.setup_dependent_not_wanted("b_only", "aa, a_b, standalone");
+    parser.setup_option_add_required("a_b", "aa, bb");
+    parser.setup_option_add_not_wanted("a_only", "bb, a_b, standalone");
+    parser.setup_option_add_not_wanted("b_only", "aa, a_b, standalone");
 
     // this adds option as a standalone (i.e. it must not be specified with any other option)
     parser.setup_option_as_standalone("standalone");

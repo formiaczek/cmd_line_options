@@ -92,6 +92,10 @@ int main(int argc, char **argv)
 
     parser.add_handler_for_other_arguments(other_cmd_line_arguments);
 
+
+    parser.setup_options_require_any_of("hello_few_times, hello");
+
+
     parser.run(argc, argv); // this starts the parser..
 
     // rest of your program..

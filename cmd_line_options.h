@@ -274,9 +274,9 @@ inline std::vector<T> get_vect_difference(std::vector<T>& v1, std::vector<T>& v2
  * @return resulting string.
  */
 template <class T>
-inline std::string merge_from_vector(std::vector<T>& vect,
-                                     char parenthesis = '\"',
-                                     char separator=',')
+inline std::string join_items_of_vector(std::vector<T>& vect,
+                                        char parenthesis = '\"',
+                                        char separator=',')
 {
     std::stringstream result;
     typename std::vector<T>::iterator i;
@@ -290,6 +290,7 @@ inline std::string merge_from_vector(std::vector<T>& vect,
     }
     return result.str();
 }
+
 
 /**
  * @brief This is a default template for a helper class used to extract parameters.
@@ -1031,7 +1032,7 @@ public:
                 if (diff.size())
                 {
                     result << "option \"" << name << "\" requires also: ";
-                    result << merge_from_vector(diff);
+                    result << join_items_of_vector(diff);
                 }
             }
 
@@ -1050,7 +1051,7 @@ public:
                         result << ", and";
                     }
                     result << " can't be used with: ";
-                    result << merge_from_vector(isect);
+                    result << join_items_of_vector(isect);
                 }
             }
 
@@ -1064,7 +1065,7 @@ public:
                     all_specified_options.erase(std::remove(all_specified_options.begin(),
                                                             all_specified_options.end(),
                                                             name), all_specified_options.end());
-                    result << merge_from_vector(all_specified_options);
+                    result << join_items_of_vector(all_specified_options);
                 }
             }
         }
@@ -1921,7 +1922,14 @@ public:
     }
 
 
-    void setup_required_options(std::string list_of_required_options)
+    /**
+     * @brief sets options as required.
+     * @param list_of_required_options - list of all options that need to be specified.
+     *        If not all of options specified on this will appear in the command line,
+     *        parser will notify this as an error.
+     * @throws option_error if any of specified options is not valid (i.e. has not been previously added)
+     */
+    void setup_options_require_all(std::string list_of_required_options)
     {
         // now extract options from the list, check and add them to current one
         std::stringstream s(list_of_required_options);
@@ -1933,8 +1941,8 @@ public:
             option* other_option = options.find_option(next_option_name);
             if (other_option != NULL)
             {
-                required_options.push_back(next_option_name);
-                std::sort(required_options.begin(), required_options.end());
+                options_required_all.push_back(next_option_name);
+                std::sort(options_required_all.begin(), options_required_all.end());
             }
             else
             {
@@ -1947,13 +1955,44 @@ public:
     }
 
     /**
+     * @brief Use this method to instruct the parser to require at least one of specified options.
+     * @param list_of_options - list of all options, of which at least one should be specified.
+     *        If none from this list will appear in the command line, parser will notify this as an error.
+     * @throws option_error if any of specified options is not valid (i.e. has not been previously added)
+     */
+    void setup_options_require_any_of(std::string list_options)
+    {
+        // now extract options from the list, check and add them to current one
+        std::stringstream s(list_options);
+        std::string next_option_name;
+
+        next_option_name = get_next_token(s, " ,;\"\t\n\r");
+        while (next_option_name.length() > 0)
+        {
+            option* other_option = options.find_option(next_option_name);
+            if (other_option != NULL)
+            {
+                optons_required_any_of.push_back(next_option_name);
+                std::sort(optons_required_any_of.begin(), optons_required_any_of.end());
+            }
+            else
+            {
+                throw option_error(
+                                "error: %s failed: option \"%s\" is not valid",
+                                __FUNCTION__, next_option_name.c_str());
+            }
+            next_option_name = get_next_token(s, " ,;\"\t\n\r");
+        }
+    }
+
+    /**
      * @brief Use this method to specify dependent options that also need to be present
      *        whenever option_name is specified.
      * @param option_name option name, for which dependent options are being specified
      * @param list_of_dependent_options string containing list of options (comma/semicolon/space separated)
      * @throws option_error if any of specified options is not valid (i.e. has not been previously added)
      */
-    void setup_dependent_required(std::string option_name, std::string list_of_dependent_options)
+    void setup_option_add_required(std::string option_name, std::string list_of_dependent_options)
     {
         try
         {
@@ -1970,10 +2009,10 @@ public:
      * @brief Use this method to specify dependent options that must not be present
      *        whenever option_name is specified.
      * @param option_name option name, for which dependent options are being specified
-     //     * @param list_of_not_wanted_options string containing list of options (comma/semicolon/space separated)
+     * @param list_of_not_wanted_options string containing list of options (comma/semicolon/space separated)
      * @throws option_error if any of specified options is not valid (i.e. has not been previously added)
      */
-    void setup_dependent_not_wanted(std::string option_name, std::string list_of_not_wanted_options)
+    void setup_option_add_not_wanted(std::string option_name, std::string list_of_not_wanted_options)
     {
         try
         {
@@ -2068,6 +2107,10 @@ public:
 
 
         result = check_options_and_execute();
+        if(!result)
+        {
+            execute_list.clear();
+        }
 
         // regardless of result from options - execute other_args_handler
         // and update result if successful
@@ -2422,29 +2465,39 @@ protected:
         }
         else
         {
-            if (required_options.size())
+            if (options_required_all.size())
             {
-                std::stringstream result;
-                if (required_options.size())
+                std::stringstream err_msg;
+                std::vector<std::string> isect = get_vect_intersection(options_required_all, execute_list);
+                if (isect.size() != options_required_all.size())
                 {
-                    std::vector<std::string> isect = get_vect_intersection(required_options, execute_list);
-                    if (isect.size() != required_options.size())
-                    {
-                        result << "required following option(s): \n ";
-                        result << merge_from_vector(required_options) << "\n\n";
+                    err_msg << "required following option(s): \n ";
+                    err_msg << join_items_of_vector(options_required_all) << "\n\n";
 
-                        if(execute_list.size())
-                        {
-                            result << "but specified only:\n ";
-                            result << merge_from_vector(execute_list);
-                        }
-                        else
-                        {
-                            result << "but nothing was specified";
-                        }
-                        std::cout << "error: " << result.str() << "\n\n";
-                        return false;
+                    if(execute_list.size())
+                    {
+                        err_msg << "but specified only:\n ";
+                        err_msg << join_items_of_vector(execute_list);
                     }
+                    else
+                    {
+                        err_msg << "but nothing was specified.";
+                    }
+                    std::cout << "error: " << err_msg.str() << "\n\n";
+                    return false;
+                }
+            }
+
+            if (optons_required_any_of.size())
+            {
+                std::stringstream err_msg;
+                std::vector<std::string> isect = get_vect_intersection(optons_required_any_of, execute_list);
+                if (isect.size() == 0)
+                {
+                    err_msg << "at least one of the following option(s) is required: \n ";
+                    err_msg << join_items_of_vector(optons_required_any_of);
+                    std::cout << "error: " << err_msg.str() << "\n\n";
+                    return false;
                 }
             }
 
@@ -2485,7 +2538,6 @@ protected:
         return result;
     }
 
-
     OptionContainer options;
     std::string description;
     std::string program_name;
@@ -2494,7 +2546,8 @@ protected:
     other_arguments_handler other_args_handler;
     std::vector<std::string> other_args;
     std::vector<std::string> execute_list;
-    std::vector<std::string> required_options;
+    std::vector<std::string> options_required_all;
+    std::vector<std::string> optons_required_any_of;
 };
 
 /**

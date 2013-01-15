@@ -14,23 +14,6 @@
 
 #include "test_options_definitions.h"
 
-/*
-void option0();
-void option1_uchar(unsigned char param1);
-void option1_char(char param1);
-void option1_schar(signed char param1);
-void option1_short(short param1);
-void option1_ushort(unsigned short param1);
-void option1_int(int param1);
-void option1_uint(unsigned int param1);
-void option1_long(long param1);
-void option1_ulong(unsigned long integer);
-void option1_float(float param1);
-void option1_double(double integer);
-void option1_ldouble(long double integer);
-void option1_string(std::string param1);
-*/
-
 static const char* program_name = "some/path/program/name";
 
 TEST_CASE("test argv stuff", "should work as expected..")
