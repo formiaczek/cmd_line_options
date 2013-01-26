@@ -1407,13 +1407,23 @@ public:
     }
 
     /**
-     * @brief Calls the requested function passing it an address of the object specified when this option was created.
-     * @param (not used)
+     * @brief  Empty implementation of a pure-virtual...nothing to extract this time..
+     * @param  Input stream from which next token points to the parameter that needs to be extracted.
      */
-    virtual void execute(std::stringstream& /*cmd_line_options*/)
+    virtual void extract_params(std::stringstream& /*cmd_line_options*/)
+    {
+        return;
+    }
+
+    /**
+     * @brief Calls the requested function passing it an address of the object specified when
+     *        this option was created.
+     */
+    virtual void execute()
     {
         f(obj_addr);
     }
+
 protected:
     option_no_params_pass_obj() :
                     obj_addr(NULL)
@@ -1841,6 +1851,12 @@ protected:
 
 
 /**
+ * @brief string describing help options.
+ */
+static const char* help_options = "\"?\", \"-h\" or \"--help\"";
+
+
+/**
  * @brief This is the main class of this library.
  */
 class cmd_line_parser
@@ -1917,7 +1933,7 @@ public:
            options.create_help(help);
         }
 
-        help << "\n Use \"?\", \"-h\" or \"--help\" to print this help message.\n";
+        help << "\n Use " << help_options << " to print this help message.\n";
         std::cout << help.str();
     }
 
@@ -2374,9 +2390,9 @@ protected:
                 {
                     if (other_args_handler == NULL/* && default_option == NULL*/)
                     {
-                        throw option_error(
-                                        "\"%s\": no such option, try \"?\" or \"help\" to see usage.\n",
-                                        option_name.c_str());
+                        throw option_error("%s: \"%s\": no such option, try %s to see usage.\n",
+                                        program_name.c_str(),
+                                        option_name.c_str(), help_options);
                     }
                     else
                     {
@@ -2483,7 +2499,8 @@ protected:
                     {
                         err_msg << "but nothing was specified.";
                     }
-                    std::cout << "error: " << err_msg.str() << "\n\n";
+                    err_msg << "\ntry " << help_options << " to see usage.\n";
+                    std::cout << program_name << ": " << err_msg.str() << "\n";
                     return false;
                 }
             }
@@ -2496,7 +2513,8 @@ protected:
                 {
                     err_msg << "at least one of the following option(s) is required: \n ";
                     err_msg << join_items_of_vector(optons_required_any_of);
-                    std::cout << "error: " << err_msg.str() << "\n\n";
+                    err_msg << "\n\ntry " << help_options << " to see usage.\n";
+                    std::cout << program_name << ": " << err_msg.str() << "\n";
                     return false;
                 }
             }
@@ -2513,7 +2531,7 @@ protected:
                         }
                 } catch (option_error& e)
                 {
-                    std::cout << e.what() << std::endl;
+                    std::cout << program_name << ": " <<  e.what() << std::endl;
 
                     // should skip any execution if options were not right.
                     execute_list.clear();
