@@ -225,64 +225,62 @@ inline std::string get_next_token(std::stringstream& from, std::string delimiter
 }
 
 /**
- * @brief Helper function template that returns intersection of two vectors.
- * @param v1 first vector. Precondition: has to be sorted.
- * @param v2 second vector.
- * @return intersection of v1 and v2 (by value).
+ * @brief Helper function template that returns set-intersection of two containers.
+ * @param c1 reference to a first container.
+ * @param c2 reference to a second container.
+ * @return intersection of c1 and c2 (by value).
  */
-template <class T>
-inline std::vector<T> get_vect_intersection(std::vector<T>& v1, std::vector<T>& v2)
+template< template < class X, class All = std::allocator<X> > class Container, class Type>
+inline Container<Type> get_set_intersection(const Container<Type>& c1, const Container<Type>& c2)
 {
-    std::vector<T> tmp(
-                    std::max<size_t>(v1.size(), v2.size()));
-
-    std::vector<std::string> isect = std::vector<T>(
+    std::set<Type> s1(c1.begin(), c1.end());
+    std::set<Type> s2(c2.begin(), c2.end());
+    Container<Type> tmp((std::max)(s1.size(), s2.size()));
+    Container<Type> diff = Container<Type>(
                     tmp.begin(),
-                    std::set_intersection(v1.begin(), v1.end(),
-                                          v2.begin(), v2.end(),
+                    std::set_intersection(s1.begin(), s1.end(),
+                                          s2.begin(), s2.end(),
                                           tmp.begin()));
+    return diff;
+}
+
+/**
+ * @brief Helper function template that returns set-difference of two containers.
+ * @param c1 reference to a first container.
+ * @param c2 reference to a second container.
+ * @return difference of c1 and c2 (by value).
+ */
+template< template < class X, class All = std::allocator<X> > class Container, class Type>
+inline Container<Type> get_set_difference(const Container<Type>& c1, const Container<Type>& c2)
+{
+    std::set<Type> s1(c1.begin(), c1.end());
+    std::set<Type> s2(c2.begin(), c2.end());
+    Container<Type> tmp(std::max<size_t>(s1.size(), s2.size()));
+    Container<Type> isect = Container<Type>(
+                    tmp.begin(),
+                    std::set_difference(s1.begin(), s1.end(),
+                                        s2.begin(), s2.end(),
+                                        tmp.begin()));
     return isect;
 }
 
-
 /**
- * @brief Helper function template that returns difference between two vectors.
- * @param v1 first vector. Precondition: has to be sorted.
- * @param v2 second vector.
- * @return difference between v1 and v2 (by value).
- */
-template <class T>
-inline std::vector<T> get_vect_difference(std::vector<T>& v1, std::vector<T>& v2)
-{
-    std::vector<T> tmp(
-                    std::max<size_t>(v1.size(), v2.size()));
-
-    std::vector<std::string> isect = std::vector<T>(
-                    tmp.begin(),
-                    std::set_difference(v1.begin(), v1.end(),
-                                          v2.begin(), v2.end(),
-                                          tmp.begin()));
-    return isect;
-}
-
-
-/**
- * @brief helper template function that merges values of a vector into a string.
- * @param vect reference to a source vector
+ * @brief helper template function that merges items of the container into a string.
+ * @param container reference to a source container.
  * @param parenthesis (optional) - default parenthesis in which each of the values will be inserted
  * @param separator (optional) - separator that will be placed between values
  * @return resulting string.
  */
-template <class T>
-inline std::string join_items_of_vector(std::vector<T>& vect,
+template< template < class X, class All = std::allocator<X> > class Container, class Type>
+inline std::string merge_items_to_string(const Container<Type>& container,
                                         char parenthesis = '\"',
                                         char separator=',')
 {
     std::stringstream result;
-    typename std::vector<T>::iterator i;
-    for (i = vect.begin(); i != vect.end();i++)
+    typename Container<Type>::const_iterator i;
+    for (i = container.begin(); i != container.end(); i++)
     {
-        if (i != vect.begin())
+        if (i != container.begin())
         {
             result << separator << " ";
         }
@@ -993,7 +991,6 @@ public:
     void add_required_option(std::string option_name)
     {
         required_options.push_back(option_name);
-        std::sort(required_options.begin(), required_options.end());
     }
 
     /**
@@ -1002,7 +999,6 @@ public:
     void add_not_wanted_option(std::string option_name)
     {
         not_wanted_options.push_back(option_name);
-        std::sort(not_wanted_options.begin(), not_wanted_options.end());
     }
 
     /**
@@ -1023,22 +1019,20 @@ public:
         std::stringstream result;
         if (all_specified_options.size())
         {
-            std::sort(all_specified_options.begin(), all_specified_options.end());
-
             if (required_options.size() && all_specified_options.size())
             {
-                Container diff = get_vect_difference(required_options,
+                Container diff = get_set_difference(required_options,
                                                      all_specified_options);
                 if (diff.size())
                 {
                     result << "option \"" << name << "\" requires also: ";
-                    result << join_items_of_vector(diff);
+                    result << merge_items_to_string(diff);
                 }
             }
 
             if (not_wanted_options.size())
             {
-                Container isect = get_vect_intersection(not_wanted_options,
+                Container isect = get_set_intersection(not_wanted_options,
                                                         all_specified_options);
                 if (isect.size())
                 {
@@ -1051,7 +1045,7 @@ public:
                         result << ", and";
                     }
                     result << " can't be used with: ";
-                    result << join_items_of_vector(isect);
+                    result << merge_items_to_string(isect);
                 }
             }
 
@@ -1065,7 +1059,7 @@ public:
                     all_specified_options.erase(std::remove(all_specified_options.begin(),
                                                             all_specified_options.end(),
                                                             name), all_specified_options.end());
-                    result << join_items_of_vector(all_specified_options);
+                    result << merge_items_to_string(all_specified_options);
                 }
             }
         }
@@ -1958,7 +1952,6 @@ public:
             if (other_option != NULL)
             {
                 options_required_all.push_back(next_option_name);
-                std::sort(options_required_all.begin(), options_required_all.end());
             }
             else
             {
@@ -1989,7 +1982,6 @@ public:
             if (other_option != NULL)
             {
                 optons_required_any_of.push_back(next_option_name);
-                std::sort(optons_required_any_of.begin(), optons_required_any_of.end());
             }
             else
             {
@@ -2484,16 +2476,16 @@ protected:
             if (options_required_all.size())
             {
                 std::stringstream err_msg;
-                std::vector<std::string> isect = get_vect_intersection(options_required_all, execute_list);
+                std::vector<std::string> isect = get_set_intersection(options_required_all, execute_list);
                 if (isect.size() != options_required_all.size())
                 {
                     err_msg << "required following option(s): \n ";
-                    err_msg << join_items_of_vector(options_required_all) << "\n\n";
+                    err_msg << merge_items_to_string(options_required_all) << "\n\n";
 
                     if(execute_list.size())
                     {
                         err_msg << "but specified only:\n ";
-                        err_msg << join_items_of_vector(execute_list);
+                        err_msg << merge_items_to_string(execute_list);
                     }
                     else
                     {
@@ -2508,11 +2500,11 @@ protected:
             if (optons_required_any_of.size())
             {
                 std::stringstream err_msg;
-                std::vector<std::string> isect = get_vect_intersection(optons_required_any_of, execute_list);
+                std::vector<std::string> isect = get_set_intersection(optons_required_any_of, execute_list);
                 if (isect.size() == 0)
                 {
                     err_msg << "at least one of the following option(s) is required: \n ";
-                    err_msg << join_items_of_vector(optons_required_any_of);
+                    err_msg << merge_items_to_string(optons_required_any_of);
                     err_msg << "\n\ntry " << help_options << " to see usage.\n";
                     std::cout << program_name << ": " << err_msg.str() << "\n";
                     return false;
@@ -2525,11 +2517,12 @@ protected:
                 try
                 {
                     option* option_to_execute = options.find_option(*i);
-                    if(option_to_execute != NULL) // TODO: assert? it's not possible that this is NULL, unless a bug is introduced during development etc.
+                    if(option_to_execute != NULL) // TODO: RT assert? it's not possible that this is NULL, unless a bug is introduced during development etc.
                         {
                         option_to_execute->check_if_valid_with_these_options(execute_list);
                         }
-                } catch (option_error& e)
+                }
+                catch (option_error& e)
                 {
                     std::cout << program_name << ": " <<  e.what() << std::endl;
 

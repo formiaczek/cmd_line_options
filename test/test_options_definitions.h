@@ -26,6 +26,7 @@ public:
     void reset()
     {
         params.clear();
+
     }
 
     int add_param(std::string param_str)
@@ -34,23 +35,20 @@ public:
         if(curr_param_id < MAX_NUM_OF_PARAMS)
         {
             params.push_back(param_str);
-            std::string& param = params[curr_param_id];
-            argv_ptr[curr_param_id] = const_cast<char*>(param.c_str());
         }
         else
         {
-            throw ("my_argv::add_param() failed: too many params specified..");
+            throw ("my_argv::add_param() failed: too many params already added..");
         }
+
         return curr_param_id;
     }
 
-    void update_param(unsigned int param_no, std::string new_value)
+    void update_param(unsigned int param_no, const std::string& new_value)
     {
         if(param_no < params.size())
         {
-            std::string& param = params[param_no];
-            param = new_value;
-            argv_ptr[param_no] = const_cast<char*>(param.c_str());
+            params[param_no] = new_value;
         }
         else
         {
@@ -58,8 +56,12 @@ public:
         }
     }
 
-    char* const * ptr()
+    char** ptr()
     {
+        for(size_t i = 0; i < params.size(); i++)
+        {
+            argv_ptr[i] =  const_cast<char*>(params[i].c_str());
+        }
         return argv_ptr;
     }
 
@@ -76,8 +78,6 @@ public:
     friend std::ostream& operator<<(std::ostream &out,  my_argv& argv);
 
     char* argv_ptr[MAX_NUM_OF_PARAMS];
-    int argv_buf[MAX_NUM_OF_PARAMS];
-
     std::vector <std::string> params;
 };
 
