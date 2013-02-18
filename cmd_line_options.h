@@ -72,6 +72,9 @@
 #define CMD_LINE_OPTIONS_
 
 
+
+#define NEW_VERSION
+
 #include <set>
 #include <map>
 #include <vector>
@@ -86,7 +89,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
-#define MAX_LINE_SIZE 80
+#define MAX_LINE_SIZE 60 // TODO 80
 
 #define SPLIT_TO_NAME_AND_STR(identifier) identifier, #identifier
 
@@ -159,7 +162,7 @@ public:
 protected:
     enum constants
     {
-        MAX_MSG_LEN = 512
+        MAX_MSG_LEN = 1024
     };
     char msg[MAX_MSG_LEN];
 };
@@ -289,6 +292,231 @@ inline std::string merge_items_to_string(const Container<Type>& container,
     return result.str();
 }
 
+/**
+ * @brief helper function to replace all occurrences of a string with another string.
+ * @param where -string to be manipulated.
+ * @param what - old string.
+ * @param with - new string.
+ */
+inline void replace_all(std::string& where, const std::string& what, const std::string& with)
+{
+    size_t start = 0;
+    while((start = where.find(what, start)) != std::string::npos)
+    {
+             where.replace(start, what.length(), with);
+             start += with.length();
+    }
+}
+
+
+/**
+ * @brief Adjusts a string to a maximum line length, splitting it
+ *        (whole words only) into multiple lines if necessary.
+ *        If string already contains end-line characters
+ *        (i.e. already forms lines) Each line will be adjusted,
+ *        but original line breaks will be preserved.
+ * @param text_to_split text to be formatted
+ * @param max_line_length maximum line length.
+ * @param indent_for_new_lines string that should be used to indent new lines with.
+ */
+inline void format_to_max_line_length(std::string& text_to_split,
+                                      size_t max_line_length = MAX_LINE_SIZE,
+                                      std::string indent_for_new_lines="" )
+{
+    std::stringstream out;
+    std::stringstream in(text_to_split);
+    size_t double_endl = indent_for_new_lines.find("\n");
+    if(double_endl != std::string::npos)
+    {
+        indent_for_new_lines.erase(double_endl, 1);
+    }
+
+    max_line_length -= indent_for_new_lines.size();
+
+    std::string next_line = get_next_token(in, "\n\r\0");
+    while(next_line.size() > 0)
+    {
+        std::stringstream d(next_line);
+        std::string next_part;
+        size_t curr_len = 0;
+        while(d >> next_part)
+        {
+            curr_len += next_part.length();
+            if (curr_len >= max_line_length)
+            {
+                out << '\n';
+                out << indent_for_new_lines;
+                curr_len = next_part.length();
+            }
+
+            out << next_part << " ";
+        }
+
+        next_line = get_next_token(in, "\n\r\0");
+        if(next_line.size())
+        {
+            out << "\n";
+            if(double_endl != std::string::npos)
+            {
+                out << "\n";
+            }
+        }
+    }
+    text_to_split = out.str();
+}
+
+/**
+ * @brief modifies line(s) appending prefix and suffix.
+ * @param line reference to a line that would be modified.
+ * @param prefix (self descriptive)
+ * @param suffix (self descriptive)
+ */
+inline void append_to_lines(std::string& line,
+                            const std::string& prefix,
+                            const std::string& suffix="")
+{
+    std::stringstream in(line);
+    std::stringstream out;
+    std::string current;
+    while(true)
+    {
+        current = get_next_token(in, "\n\r");
+        if(current.length())
+        {
+            out << prefix << current << suffix << "\n";
+        }
+        else
+        {
+            break;
+        }
+    }
+    line = out.str();
+}
+
+inline void indent_and_trim(std::string& text, size_t indent_len, size_t max_line_len = MAX_LINE_SIZE)
+{
+    std::string new_text(text);
+    if(max_line_len > indent_len)
+    {
+        format_to_max_line_length(new_text, max_line_len - indent_len, std::string(4, ' '));
+        append_to_lines(new_text, std::string(indent_len, ' '));
+        text = new_text;
+    }
+}
+
+class doxy_dictionary
+{
+public:
+    typedef std::vector<std::pair <std::string, std::string> > vector_of_string_pairs;
+    typedef std::map <std::string, std::vector< std::pair <std::string, std::string> > > dict_doxynary;
+
+    doxy_dictionary()
+    {
+    }
+
+    bool setup(std::string from_str)
+    {
+        bool extracted_something = false;
+        std::string token;
+        std::string name;
+        std::string value;
+        std::stringstream s(from_str);
+        unsigned long start = from_str.find("@");
+        if(start != std::string::npos)
+        {
+            do
+            {
+                token = get_next_token(s, "@ :\t.");
+                if(token.length() < 2)
+                    {
+                    break;
+                    }
+
+                if(s.tellg() == (int)token.length() + 1
+                   && token != "brief") // in case brief was not there..
+                {
+                    value = token + get_next_token(s, "@");
+                    token = "brief";
+                }
+                else
+                {
+                    if(token == "param")
+                    {
+                        name = get_next_token(s, " :\t-");
+                    }
+
+                    if(token == "author")
+                    {
+                        value = get_next_token(s, " :\t-\n\r");
+                        if(value.rfind(".") == value.length()-1)
+                            {
+                            value.erase(value.length()-1, value.length());
+                            }
+                    }
+                    else
+                    {
+                        value = get_next_token(s, "@\0");
+                        value.erase(0, value.find_first_not_of(" :\n\r."));
+                    }
+                }
+
+                std::pair<dict_doxynary::iterator, bool> res;
+                if(dict.find(token) == dict.end())
+                {
+                    dict.insert(std::make_pair(token, vector_of_string_pairs()));
+                    extracted_something = true;
+                }
+
+                vector_of_string_pairs& v = dict[token];
+                v.push_back(std::make_pair(name, value));
+            }
+            while(value.length()>0);
+        }
+        return extracted_something;
+    }
+
+    void dump()
+    {
+        std::cout << "\n\nall: \n";
+        dict_doxynary::iterator ti;
+        vector_of_string_pairs::iterator vi;
+
+        for (ti = dict.begin(); ti != dict.end(); ti++)
+        {
+            std::string token = ti->first;
+            std::cout << "token: " << token << "\n";
+
+            for(vi = ti->second.begin(); vi != ti->second.end(); vi++)
+            {
+                std::cout << "\tname : [" << vi->first << "]\n";
+                std::cout << "\tvalue: [" << vi->second << "]\n";
+            }
+        }
+    }
+
+    bool found_tokens(const std::string& token_name)
+    {
+        bool res = false;
+        if(dict.size() > 0 && dict.find(token_name) != dict.end())
+        {
+            res = true;
+        }
+        return res;
+    }
+
+    vector_of_string_pairs& get_occurences(const std::string& token_name)
+    {
+        dict_doxynary::iterator i = dict.find(token_name);
+        if(i == dict.end())
+        {
+            throw option_error("doxy_parser::%s(): token %s doesn't exist.", __FUNCTION__, token_name.c_str());
+        }
+        return i->second;
+    }
+
+public:
+    dict_doxynary dict;
+};
 
 /**
  * @brief This is a default template for a helper class used to extract parameters.
@@ -375,7 +603,7 @@ public:
 
         if (token.fail() || !token.eof())
         {
-            throw option_error("%s, got \"%s\".", usage().c_str(), token.str().c_str());
+            throw option_error("%s, got: \"%s\"", usage().c_str(), token.str().c_str());
         }
         return param * sign;
     }
@@ -424,7 +652,7 @@ public:
 
         if (token.fail() || !token.eof() || sign == -1)
         {
-            throw option_error("%s, got \"%s\".", usage().c_str(), token.str().c_str());
+            throw option_error("%s, got: \"%s\"", usage().c_str(), token.str().c_str());
         }
         return param;
     }
@@ -469,7 +697,7 @@ public:
 
         if (token.fail() || !token.eof())
         {
-            throw option_error("%s, got \"%s\".", usage().c_str(), token.str().c_str());
+            throw option_error("%s, got: \"%s\"", usage().c_str(), token.str().c_str());
         }
         return param * sign;
     }
@@ -518,7 +746,7 @@ public:
 
         if (token.fail() || !token.eof() || sign == -1)
         {
-            throw option_error("%s, got \"%s\".", usage().c_str(), token.str().c_str());
+            throw option_error("%s, got: \"%s\"", usage().c_str(), token.str().c_str());
         }
         return param;
     }
@@ -566,7 +794,7 @@ public:
 
         if (token.fail() || !token.eof())
         {
-            throw option_error("%s, got \"%s\".", usage().c_str(), token.str().c_str());
+            throw option_error("%s, got: \"%s\"", usage().c_str(), token.str().c_str());
         }
         return param * sign;
     }
@@ -614,7 +842,7 @@ public:
 
         if (token.fail() || !token.eof() || sign == -1)
         {
-            throw option_error("%s, got \"%s\".", usage().c_str(), token.str().c_str());
+            throw option_error("%s, got: \"%s\"", usage().c_str(), token.str().c_str());
         }
         return param;
     }
@@ -644,7 +872,7 @@ public:
         param = token.get();
         if (token.fail() || token.get() != std::char_traits<char>::eof())
         {
-            throw option_error("%s, got \"%s\".", usage().c_str(), token.str().c_str());
+            throw option_error("%s, got: \"%s\"", usage().c_str(), token.str().c_str());
         }
         return param;
     }
@@ -674,7 +902,7 @@ public:
         param = token.get();
         if (token.fail() || token.get() != std::char_traits<char>::eof())
         {
-            throw option_error("%s, got \"%s\".", usage().c_str(), token.str().c_str());
+            throw option_error("%s, got: \"%s\"", usage().c_str(), token.str().c_str());
         }
         return param;
     }
@@ -705,7 +933,7 @@ public:
         param = token.get();
         if (token.fail() || token.get() != std::char_traits<char>::eof())
         {
-            throw option_error("%s, got \"%s\".", usage().c_str(), token.str().c_str());
+            throw option_error("%s, got: \"%s\"", usage().c_str(), token.str().c_str());
         }
         return param;
     }
@@ -764,7 +992,7 @@ public:
         token >> param;
         if (token.fail() || !token.eof())
         {
-            throw option_error("%s, got \"%s\".", usage().c_str(), token.str().c_str());
+            throw option_error("%s, got: \"%s\"", usage().c_str(), token.str().c_str());
         }
         return param;
     }
@@ -795,7 +1023,7 @@ public:
 
         if (token.fail() || !token.eof())
         {
-            throw option_error("%s, got \"%s\".", usage().c_str(), token.str().c_str());
+            throw option_error("%s, got: \"%s\"", usage().c_str(), token.str().c_str());
         }
         return param;
     }
@@ -827,7 +1055,7 @@ public:
 
         if (token.fail() || !token.eof())
         {
-            throw option_error("%s, got \"%s\".", usage().c_str(), token.str().c_str());
+            throw option_error("%s, got: \"%s\"", usage().c_str(), token.str().c_str());
         }
         return param;
     }
@@ -967,7 +1195,9 @@ public:
      */
     option(std::string& name) :
                     standalone(false),
-                    name(name)
+                    name(name),
+                    params_extracted(0),
+                    indent_size(0)
     {
     }
     /**
@@ -1077,6 +1307,108 @@ public:
     void set_description(std::string& description)
     {
         descr = description;
+        if (doxy_dict.setup(description))
+        {
+            try
+            {
+                doxy_dictionary::vector_of_string_pairs& brief = doxy_dict.get_occurences("brief");
+                doxy_dictionary::vector_of_string_pairs& params = doxy_dict.get_occurences("param");
+                descr = brief.begin()->second;
+
+                const int& number_of_params = num_params();
+                const int& number_of_param_descr = params.size();
+
+                if(number_of_params != number_of_param_descr)
+                {
+                    throw option_error("Error while parsing description of option %s: expected to find %d parameters, "
+                                        "but %d was found", name.c_str(), number_of_params, number_of_param_descr);
+                }
+            }
+            catch(...)
+            {
+                // TODO decide what to do..
+            }
+        }
+    }
+
+
+    friend std::ostream& operator<<(std::ostream &out,  option& o)
+    {
+        out << "\n" << std::string(o.indent_size, ' ') << o.name << ": ";
+
+        std::string tmp = o.descr;
+        int sub_indent_size = o.indent_size + o.name.size() - 2; // -2 because of ": "
+        if (sub_indent_size < 3)
+        {
+            sub_indent_size = 3;
+        }
+
+        indent_and_trim(tmp, sub_indent_size);
+        tmp.erase(0, sub_indent_size);
+        out << tmp << "\n";
+
+        sub_indent_size = o.name.size() - 5 + o.indent_size;
+        if (sub_indent_size < 0)
+        {
+            sub_indent_size = 3;
+        }
+
+        // add usage
+        out << std::string(sub_indent_size, ' ') << "usage: ";
+        out << o.name << " ";
+
+        try
+        {
+            doxy_dictionary::vector_of_string_pairs& brief = o.doxy_dict.get_occurences("brief");
+            doxy_dictionary::vector_of_string_pairs& params = o.doxy_dict.get_occurences("param");
+
+            if (brief.size() && params.size())
+            {
+
+                const int& number_of_params = params.size();
+                for (int i = 0; i < number_of_params; i++)
+                {
+                    out << "<" + params[i].first + "> ";
+                }
+                out << "\n";
+
+                std::stringstream u(o.usage);
+                std::string curr;
+                for (int i = 0; i < number_of_params; i++)
+                {
+                    u >> curr;
+                    curr = curr.substr(1, curr.size() - 2);
+                    if (i != 0)
+                    {
+                        out << std::string(8, ' ');
+                    }
+                    curr = params[i].first + " (" + curr + "): "; // name
+                    indent_and_trim(curr, sub_indent_size + 3);
+
+                    curr.erase(curr.find_last_of("\n"), curr.size());
+                    curr += params[i].second; // description
+                    indent_and_trim(curr, sub_indent_size + 3);
+
+                    curr.erase(curr.find_last_of(" "), curr.size());
+                    out << "\n" << curr << "\n";
+                }
+            }
+        } catch (...)
+        {
+            // This will happen if option params were not extracted with the doxydict.
+            // Do nothing, as description has been already inserted to out before 'try' statement.
+        }
+        return out;
+    }
+
+    void set_indent(int num_letters)
+    {
+        indent_size = num_letters;
+    }
+
+    virtual int num_params()
+    {
+        return 0; // default implementation..
     }
 
     /**
@@ -1096,6 +1428,11 @@ public:
 
     Container required_options;
     Container not_wanted_options;
+
+    doxy_dictionary doxy_dict;
+
+    size_t params_extracted;
+    int indent_size;
 };
 
 /**
@@ -1159,6 +1496,13 @@ public:
     option_1_param(Fcn f_ptr, std::string& name) :
                     option(name), f(f_ptr)
     {
+
+        if(doxy_dict.found_tokens("param"))
+        {
+            std::cout << "found description\n";
+            std::pair<std::string, std::string> name_desc = doxy_dict.dict["param"].front();
+        }
+
         usage = param_extractor<P1>::usage();
     }
 
@@ -1181,6 +1525,12 @@ public:
         f(p1);
     }
 protected:
+
+    virtual int num_params()
+    {
+        return 1;
+    }
+
     option_1_param()
     {
     }
@@ -1213,18 +1563,23 @@ public:
     virtual void extract_params(std::stringstream& cmd_line_options)
     {
         p1 = param_extractor<P1>::extract(cmd_line_options);
+        params_extracted++;
         p2 = param_extractor<P2>::extract(cmd_line_options);
     }
 
     /**
-     * @brief Attempts to extract parameters and, on success - it calls the requested function.
-     * @param input stream from which next and following tokens point to next parameters that need to be extracted.
+     * @brief Calls the requested function.
      */
     virtual void execute()
     {
         f(p1, p2);
     }
 protected:
+    virtual int num_params()
+    {
+        return 2;
+    }
+
     option_2_params()
     {
     }
@@ -1259,19 +1614,25 @@ public:
     virtual void extract_params(std::stringstream& cmd_line_options)
     {
         p1 = param_extractor<P1>::extract(cmd_line_options);
+        params_extracted++;
         p2 = param_extractor<P2>::extract(cmd_line_options);
+        params_extracted++;
         p3 = param_extractor<P3>::extract(cmd_line_options);
     }
 
     /**
-     * @brief Attempts to extract parameters and, on success - it calls the requested function.
-     * @param input stream from which next and following tokens point to next parameters that need to be extracted.
+     * @brief Calls the requested function.
      */
     virtual void execute()
     {
         f(p1, p2, p3);
     }
 protected:
+    virtual int num_params()
+    {
+        return 3;
+    }
+
     option_3_params()
     {
     }
@@ -1308,8 +1669,11 @@ public:
     virtual void extract_params(std::stringstream& cmd_line_options)
     {
         p1 = param_extractor<P1>::extract(cmd_line_options);
+        params_extracted++;
         p2 = param_extractor<P2>::extract(cmd_line_options);
+        params_extracted++;
         p3 = param_extractor<P3>::extract(cmd_line_options);
+        params_extracted++;
         p4 = param_extractor<P4>::extract(cmd_line_options);
     }
 
@@ -1322,6 +1686,11 @@ public:
         f(p1, p2, p3, p4);
     }
 protected:
+    virtual int num_params()
+    {
+        return 4;
+    }
+
     option_4_params()
     {
     }
@@ -1360,9 +1729,13 @@ public:
     virtual void extract_params(std::stringstream& cmd_line_options)
     {
         p1 = param_extractor<P1>::extract(cmd_line_options);
+        params_extracted++;
         p2 = param_extractor<P2>::extract(cmd_line_options);
+        params_extracted++;
         p3 = param_extractor<P3>::extract(cmd_line_options);
+        params_extracted++;
         p4 = param_extractor<P4>::extract(cmd_line_options);
+        params_extracted++;
         p5 = param_extractor<P5>::extract(cmd_line_options);
     }
 
@@ -1375,6 +1748,11 @@ public:
         f(p1, p2, p3, p4, p5);
     }
 protected:
+    virtual int num_params()
+    {
+        return 5;
+    }
+
     option_5_params()
     {
     }
@@ -1417,8 +1795,9 @@ public:
     {
         f(obj_addr);
     }
-
 protected:
+
+
     option_no_params_pass_obj() :
                     obj_addr(NULL)
     {
@@ -1463,6 +1842,11 @@ public:
         f(obj_addr, p1);
     }
 protected:
+    virtual int num_params()
+    {
+        return 1;
+    }
+
     option_1_param_pass_obj() :
                     obj_addr(NULL)
     {
@@ -1497,19 +1881,24 @@ public:
     virtual void extract_params(std::stringstream& cmd_line_options)
     {
         p1 = param_extractor<P1>::extract(cmd_line_options);
+        params_extracted++;
         p2 = param_extractor<P2>::extract(cmd_line_options);
     }
 
     /**
-     * @brief Attempts to extract parameters and, on success - it calls the requested function,
+     * @brief Calls the requested function,
      *        passing both: the address of object and extracted parameters.
-     * @param input stream from which next and following tokens point to next parameters that need to be extracted.
      */
     virtual void execute()
     {
         f(obj_addr, p1, p2);
     }
 protected:
+    virtual int num_params()
+    {
+        return 2;
+    }
+
     option_2_params_pass_obj() :
                     obj_addr(NULL)
     {
@@ -1545,7 +1934,9 @@ public:
     virtual void extract_params(std::stringstream& cmd_line_options)
     {
         p1 = param_extractor<P1>::extract(cmd_line_options);
+        params_extracted++;
         p2 = param_extractor<P2>::extract(cmd_line_options);
+        params_extracted++;
         p3 = param_extractor<P3>::extract(cmd_line_options);
     }
 
@@ -1559,6 +1950,11 @@ public:
         f(obj_addr, p1, p2, p3);
     }
 protected:
+    virtual int num_params()
+    {
+        return 3;
+    }
+
     option_3_params_pass_obj() :
                     obj_addr(NULL)
     {
@@ -1596,8 +1992,11 @@ public:
     virtual void extract_params(std::stringstream& cmd_line_options)
     {
         p1 = param_extractor<P1>::extract(cmd_line_options);
+        params_extracted++;
         p2 = param_extractor<P2>::extract(cmd_line_options);
+        params_extracted++;
         p3 = param_extractor<P3>::extract(cmd_line_options);
+        params_extracted++;
         p4 = param_extractor<P4>::extract(cmd_line_options);
     }
 
@@ -1611,6 +2010,12 @@ public:
         f(obj_addr, p1, p2, p3, p4);
     }
 protected:
+    virtual int num_params()
+    {
+        return 4;
+    }
+
+
     option_4_params_pass_obj() :
                     obj_addr(NULL)
     {
@@ -1716,9 +2121,7 @@ public:
             const std::string& s = i->first;
             max_cmd_len = std::max<size_t>(max_cmd_len, s.length());
         }
-        max_cmd_len += 1;
-
-
+        max_cmd_len++;
 
         std::vector<group>::iterator g;
         for(g = groups.begin(); g != groups.end(); g++)
@@ -1731,39 +2134,13 @@ public:
             help_content << ":\n";
 
             group::options_iterator oi;
-
             for (oi = g->options_begin(); oi != g->options_end(); oi++)
             {
                 const std::string& s = *oi;
                 option* o = find_option(s);
-
-                int indent_size = max_cmd_len - s.length();
-
-                help_content << "  " << s ; // option name
-                help_content << std::string(indent_size, ' ') << ": ";
-
-                std::stringstream d(o->descr);
-                std::string next_desc_part;
-                size_t curr_desc_len = 0;
-                do
-                {
-                    d >> next_desc_part;
-                    curr_desc_len += next_desc_part.length();
-
-                    if (curr_desc_len >= MAX_LINE_SIZE - max_cmd_len)
-                    {
-                        help_content << '\n' << std::string(max_cmd_len + 4, ' ');
-                        curr_desc_len = next_desc_part.length();
-                    }
-                    help_content << next_desc_part << " ";
-
-                } while (d.good());
-
-                help_content << "\n";
-
-                indent_size = max_cmd_len > 4 ? max_cmd_len - 4 : max_cmd_len;
-                help_content << std::string(indent_size, ' ');
-                help_content  << "usage : " << s << " " << o->usage;
+                // TODO: could assert here, just as a sanity check for development / changess
+                o->set_indent(max_cmd_len-s.length());
+                help_content << *o;
                 help_content << "\n\n";
             }
         }
@@ -1866,7 +2243,9 @@ public:
      * @brief Default constructor.
      */
     cmd_line_parser() :
-                    version("(not set)"), default_option(NULL), other_args_handler(NULL)
+                    version("(not set)"),
+                    default_option(NULL),
+                    other_args_handler(NULL)
     {
     }
 
@@ -1875,16 +2254,18 @@ public:
      * @brief Method to set the description of the program.
      * @param desc - brief description of what the program does.
      */
-    void set_description(std::string desc)
+    void set_description(const std::string& desc)
     {
         description = desc;
+        format_to_max_line_length(description);
+        append_to_lines(description, " ");
     }
 
     /**
      * @brief Method to set the version of the program.
      * @param new_version - new version (as string) to be used / presented by the program.
      */
-    void set_version(std::string new_version)
+    void set_version(const std::string& new_version)
     {
         version = new_version;
     }
@@ -1895,7 +2276,7 @@ public:
      *        first option is added- a default group called "Options" is created
      *        (although it is still valid to add new option groups in such case).
      */
-    void add_group(std::string group_name, std::string description="")
+    void add_group(const std::string& group_name, std::string description="")
     {
         options.add_new_group(group_name, description);
     }
@@ -1917,10 +2298,21 @@ public:
 
         if (default_option != NULL)
         {
+            std::string u = default_option->usage;
+            std::string indent(' ', 8);
+            indent = "\n" + indent ;
+            replace_all(u, "\n", indent);
+
             help << "\n " << default_option->descr;
-            help << "\n\n     " << "Usage : " << program_name;
-            help << " " << default_option->usage;
+            help << "\n\n" << indent << "Usage : " << program_name;
+            help << u;
             help << "\n\n";
+
+
+//            help << "\n " << default_option->descr;
+//            help << "\n\n     " << "Usage : " << program_name;
+//            help << " " << default_option->usage;
+//            help << "\n\n";
         }
         else
         {
@@ -2313,30 +2705,39 @@ protected:
             try
             {
                 opt->extract_params(from);
-
-            } catch (option_error& e)
+            }
+            catch (option_error& e)
             {
+                // failed, print usage information..
                 std::stringstream s;
                 int indent_size = 0;
-                if(opt->name.length() > 0)
+                const size_t option_name_len = opt->name.length();
+                if(option_name_len > 0)
                 {
-                    s << "\nOption: \"" << opt->name << "\": ";
-                    indent_size = opt->name.size();
+                    s << "\n" << program_name << ": \"" << opt->name << "\": ";
+                    indent_size = 0; //opt->name.size();
                 }
-                else
+                else // default option..
                 {
                     s << "\n " << program_name << ": ";
                     indent_size = program_name.size();
                 }
-                s << "error while parsing parameters,\n";
-                s << std::string(indent_size + 3, ' ') << "expected: " << e.what();
-                s << "\n\n" << opt->descr << "\n";
-                s << "\n Usage: \n    " << program_name << " ";
-                if(opt->name.length()>0)
-                    {
-                    s << opt->name << " ";
-                    }
-                s << opt->usage;
+
+                std::string indent(indent_size + 3, ' ');
+                s << "error while parsing parameter: "<< opt->params_extracted+1 << "\n";
+                doxy_dictionary::vector_of_string_pairs& params = opt->doxy_dict.get_occurences("param");
+
+                s << indent << "expected: ";
+                if(params.size() && opt->params_extracted < params.size())
+                {
+                    s << "\"" << params[opt->params_extracted].first << "\"";
+                }
+                s << e.what() << "\n";
+
+                // print option name and description..
+
+                opt->set_indent(3);
+                s << *opt << "\n\n\n";
                 throw option_error("%s\n", s.str().c_str());
             }
         }

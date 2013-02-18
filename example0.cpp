@@ -46,7 +46,9 @@ int main(int argc, char **argv)
     parser.set_description("This is an example of how to use cmd_line_options library\n"
                            "Author: Lukasz Forynski (lukasz.forynski@gmail.com)");
 
-    parser.add_option(handle_program_options, "", "Example (optional) description for option"); // leave option name empty = and it will become a 'default' option
+    // leave option name empty = and it will become a 'default' option
+    parser.add_option(handle_program_options, "", "@brief Prints a string number of times. @param what string to print."
+                                                  "                        @param num_times number of times it should be printed.");
     // Note, that when such an option is defined - no other option can be added / defined (add_option would throw option-error in such case)
     // Note2: You still can can also add handler for all other cmd-line params in such case(see example3.cpp).
 

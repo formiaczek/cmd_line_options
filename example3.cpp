@@ -19,7 +19,7 @@
 /**
  * @brief prototype for a command-line option that takes an 'int' as a parameter..
  */
-void hello_few_times(int number_of_times)
+void hello_few_times(int number_of_times, int not_used)
 {
     for (int i = 0; i < number_of_times; i++)
     {
@@ -86,7 +86,14 @@ int main(int argc, char **argv)
     desc << "Author: Lukasz Forynski (lukasz.forynski@gmail.com)";
     parser.set_description(desc.str());
 
-    parser.add_option(hello_few_times, "hello_few_times", "prints \"hello\" a specified number of times");
+    parser.add_option(hello_few_times,
+                      "hello_few_times",
+                      " prints \"hello\" a specified number of times. Nothing particular,"
+                      "but it is only tho show how to use this framework."
+                      "@param num_times number of times \"hello\" should be printed"
+                      "to the std output. Note, that if you specify a big number"
+                      "it might take up all of your screen. @param other_something this param is not used");
+
     parser.add_option(print_hello_world, "hello", "prints \"hello world\"");
     parser.add_option(default_param, "--dp", "optional parameter..");
 
