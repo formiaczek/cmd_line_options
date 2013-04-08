@@ -1396,7 +1396,7 @@ public:
         } catch (...)
         {
             // This will happen if option params were not extracted with the doxydict.
-            // Do nothing, as description has been already inserted to out before 'try' statement.
+            out << o.usage;
         }
         return out;
     }
@@ -2724,14 +2724,19 @@ protected:
                 }
 
                 std::string indent(indent_size + 3, ' ');
-                s << "error while parsing parameter: "<< opt->params_extracted+1 << "\n";
-                doxy_dictionary::vector_of_string_pairs& params = opt->doxy_dict.get_occurences("param");
+                s << "error while parsing parameter: " << opt->params_extracted + 1 << "\n";
 
                 s << indent << "expected: ";
-                if(params.size() && opt->params_extracted < params.size())
+                if (opt->doxy_dict.found_tokens("param"))
                 {
-                    s << "\"" << params[opt->params_extracted].first << "\"";
+                    doxy_dictionary::vector_of_string_pairs& params =
+                                      opt->doxy_dict.get_occurences("param");
+                    if (params.size() && opt->params_extracted < params.size())
+                    {
+                        s << "\"" << params[opt->params_extracted].first << "\"";
+                    }
                 }
+
                 s << e.what() << "\n";
 
                 // print option name and description..

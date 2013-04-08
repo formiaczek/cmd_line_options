@@ -91,7 +91,7 @@ int main(int argc, char **argv)
                       " prints \"hello\" a specified number of times. Nothing particular,"
                       "but it is only tho show how to use this framework."
                       "@param num_times number of times \"hello\" should be printed"
-                      "to the std output. Note, that if you specify a big number"
+                      " to the std output. Note, that if you specify a big number "
                       "it might take up all of your screen. @param other_something this param is not used");
 
     parser.add_option(print_hello_world, "hello", "prints \"hello world\"");
