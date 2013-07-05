@@ -93,18 +93,6 @@
 
 #define SPLIT_TO_NAME_AND_STR(identifier) identifier, #identifier
 
-// in case there's no support for c++0x - below some
-// defines to produce more descriptive
-// compile-time assertions needed for our purposes.
-#ifdef __cplusplus
-#if __cplusplus <= 199711L  // if C++0x supported
-template<bool> struct CTAssert;
-template<> struct CTAssert<true>
-{
-};
-#define PASTE0(x, y)  x ## y
-#define PASTE(x, y) PASTE0(x, y)
-
 
 #ifdef _MSC_VER
 #define VSNPRINTF(dest, max_len, format, vargs) vsnprintf_s(dest, max_len, max_len, format, vargs)
@@ -123,12 +111,25 @@ template<> struct CTAssert<true>
  * compiler will generate error like:
  *    error: 'ct_assert_in_line_15__cant_compile_if_xxx' has incomplete type
  */
+
+// in case there's no support for c++0x - below some
+// defines to produce more descriptive
+// compile-time assertions needed for our purposes.
+#ifdef __cplusplus
+#if __cplusplus <= 199711L  // if C++0x supported
+template<bool> struct CTAssert;
+template<> struct CTAssert<true>
+{
+};
+#define PASTE0(x, y)  x ## y
+#define PASTE(x, y) PASTE0(x, y)
+
 #define STATIC_ASSERT(x, what) \
         CTAssert< (x) >  PASTE(PASTE(ct_assert_in_line_, __LINE__), __##what); \
         (void)PASTE(PASTE(ct_assert_in_line_, __LINE__), __##what);
 
 #else /* if C++0x supported - use static_assert()*/
-#define STATIC_ASSERT(x, what) static_assert(x, #what)
+#define STATIC_ASSERT(x, what) // TODO: when usig std=c++0x (or 11) this doesn't work..
 #endif /*C++0x supported*/
 #endif /*__cplusplus*/
 
@@ -1345,7 +1346,7 @@ public:
 
         indent_and_trim(tmp, sub_indent_size);
         tmp.erase(0, sub_indent_size);
-        out << tmp << "\n";
+        out << tmp;
 
         sub_indent_size = o.name.size() - 5 + o.indent_size;
         if (sub_indent_size < 0)
@@ -1364,33 +1365,38 @@ public:
 
             if (brief.size() && params.size())
             {
-
                 const int& number_of_params = params.size();
+                // list parameters first, i.e. "option_name: <paramxx> <paramxy>"
                 for (int i = 0; i < number_of_params; i++)
                 {
-                    out << "<" + params[i].first + "> ";
+                    out << "<" + params[i].first + "> "; // name of parameter
                 }
                 out << "\n";
 
+                 // now the description for each of these parameters
                 std::stringstream u(o.usage);
                 std::string curr;
                 for (int i = 0; i < number_of_params; i++)
                 {
+
                     u >> curr;
                     curr = curr.substr(1, curr.size() - 2);
+                    #ifdef ENDL_BETWEEN_OPTION_DESC
                     if (i != 0)
                     {
                         out << std::string(8, ' ');
                     }
+                    #endif
                     curr = params[i].first + " (" + curr + "): "; // name
                     indent_and_trim(curr, sub_indent_size + 3);
-
                     curr.erase(curr.find_last_of("\n"), curr.size());
                     curr += params[i].second; // description
                     indent_and_trim(curr, sub_indent_size + 3);
-
                     curr.erase(curr.find_last_of(" "), curr.size());
-                    out << "\n" << curr << "\n";
+                    #ifdef ENDL_BETWEEN_OPTION_DESC
+                    out << "\n" ;
+                    #endif
+                    out << curr << "\n";
                 }
             }
         } catch (...)
@@ -2298,28 +2304,19 @@ public:
 
         if (default_option != NULL)
         {
-            std::string u = default_option->usage;
-            std::string indent(' ', 8);
-            indent = "\n" + indent ;
-            replace_all(u, "\n", indent);
-
-            help << "\n " << default_option->descr;
-            help << "\n\n" << indent << "Usage : " << program_name;
-            help << u;
-            help << "\n\n";
-
-
-//            help << "\n " << default_option->descr;
-//            help << "\n\n     " << "Usage : " << program_name;
-//            help << " " << default_option->usage;
-//            help << "\n\n";
+            // print option name and description..
+            default_option->set_indent(3);
+            if(!default_option->name.size())
+            {
+                default_option->name = program_name;
+            }
+            help << *default_option << "\n\n";
         }
         else
         {
            options.create_help(help);
         }
 
-        help << "\n Use " << help_options << " to print this help message.\n";
         std::cout << help.str();
     }
 
@@ -2498,7 +2495,8 @@ public:
             try
             {
                 found = could_find_next_option(cmd_line);
-            } catch (option_error& err)
+            }
+            catch (option_error& err)
             {
                 std::cout << err.what();
                 return false;
@@ -2584,7 +2582,7 @@ protected:
         std::stringstream err;
         if (a != NULL)
         {
-            if (a->name.length() != 0)
+            if (a->name.length() != 0) // adding standard option
             {
                 if (default_option == NULL)
                 {
@@ -2604,7 +2602,7 @@ protected:
                     err << "\" option, but default option was set";
                 }
             }
-            else
+            else  // adding default option
             {
                 if (default_option == NULL)
                 {
@@ -2616,6 +2614,8 @@ protected:
                     {
                         default_option = a;
                         default_option->set_description(description);
+                        // we will set option name to program name, but it will happen when it
+                        // will be about to execute (i.e. we don't know argv[0] yet)
                     }
                 }
                 else
@@ -2739,10 +2739,6 @@ protected:
 
                 s << e.what() << "\n";
 
-                // print option name and description..
-
-                opt->set_indent(3);
-                s << *opt << "\n\n\n";
                 throw option_error("%s\n", s.str().c_str());
             }
         }
@@ -2874,6 +2870,10 @@ protected:
         bool result = false;
         if (default_option != NULL)
         {
+            if(!default_option->name.size())
+            {
+                default_option->name = program_name;
+            }
             default_option->execute();
             result = true;
         }
