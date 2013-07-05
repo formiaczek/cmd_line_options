@@ -26,7 +26,7 @@
 /**
  * @brief prototype for a command-line option that takes an 'int' as a parameter..
  */
-void handle_program_options(std::string what, int how_many_times)
+void handle_program_options(std::string what, int how_many_times, char* waa)
 {
     for (int i = 0; i < how_many_times; i++)
     {

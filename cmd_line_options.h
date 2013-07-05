@@ -129,7 +129,18 @@ template<> struct CTAssert<true>
         (void)PASTE(PASTE(ct_assert_in_line_, __LINE__), __##what);
 
 #else /* if C++0x supported - use static_assert()*/
-#define STATIC_ASSERT(x, what) // TODO: when usig std=c++0x (or 11) this doesn't work..
+// TODO: when usig std=c++0x (or 11) static check doesn't work this way.. so we'll throw
+// a run-time exception instead..
+#include <cxxabi.h>
+#include <typeinfo>
+template <typename T>
+std::string demangled_typeid()
+{
+    int status;
+    return abi::__cxa_demangle(typeid(T).name(), 0, 0, &status);
+}
+#define STATIC_ASSERT(x, what) throw option_error("Paramter of type: <%s> can not be used to define option(s).", \
+                                                  demangled_typeid<ParamType>().c_str())
 #endif /*C++0x supported*/
 #endif /*__cplusplus*/
 
