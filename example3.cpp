@@ -17,13 +17,13 @@
 #define PRINT_FCN_NAME  printf("%s \n", __PRETTY_FUNCTION__)
 
 /**
- * @brief prototype for a command-line option that takes an 'int' as a parameter..
+ * @brief prototype for a command-line option
  */
-void hello_few_times(int number_of_times, int not_used)
+void print_on_screen(std::string what, int how_many_times)
 {
-    for (int i = 0; i < number_of_times; i++)
+    for (int i = 0; i < how_many_times; i++)
     {
-        std::cout << "hello ";
+        std::cout << what << " ";
     }
     std::cout << std::endl;
 }
@@ -86,13 +86,13 @@ int main(int argc, char **argv)
     desc << "Author: Lukasz Forynski (lukasz.forynski@gmail.com)";
     parser.set_description(desc.str());
 
-    parser.add_option(hello_few_times,
-                      "hello_few_times",
-                      " prints \"hello\" a specified number of times. Nothing particular,"
-                      "but it is only tho show how to use this framework."
-                      "@param num_times number of times \"hello\" should be printed"
-                      " to the std output. Note, that if you specify a big number "
-                      "it might take up all of your screen. @param other_something this param is not used");
+
+    parser.add_option(print_on_screen,
+                      "print",
+                      "@brief prints specified string number of times on the screen."
+                      "@param what String to be printed."
+                      "@param how_many_times Number of times it should be printed.");
+
 
     parser.add_option(print_hello_world, "hello", "prints \"hello world\"");
     parser.add_option(default_param, "--dp", "optional parameter..");
@@ -100,7 +100,7 @@ int main(int argc, char **argv)
     parser.add_handler_for_other_arguments(other_cmd_line_arguments);
 
 
-    parser.setup_options_require_any_of("hello_few_times, hello");
+    parser.setup_options_require_any_of("print, hello");
 
 
     parser.run(argc, argv); // this starts the parser..

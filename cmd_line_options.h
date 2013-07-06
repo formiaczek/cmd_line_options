@@ -1420,7 +1420,7 @@ inline std::ostream& operator<<(std::ostream &out,  option& o)
         {
             sub_indent_size = 3;
         }
-        indent_and_trim(tmp, sub_indent_size, DEFAULT_MAX_LINE_SIZE - o.name.size());
+        indent_and_trim(tmp, sub_indent_size, DEFAULT_MAX_LINE_SIZE + o.name.size());
         tmp.erase(0, sub_indent_size);
         out << tmp;
     }
@@ -1472,7 +1472,7 @@ inline std::ostream& operator<<(std::ostream &out,  option& o)
                     out << std::string(8, ' ');
                 }
                 #endif
-                curr = params[i].first + " " + curr + ": "; // name
+                curr = params[i].first + curr + ": "; // name
                 indent_and_trim(curr, sub_indent_size + 3);
                 curr.erase(curr.find_last_of("\n"), curr.size());
                 curr += params[i].second; // description
