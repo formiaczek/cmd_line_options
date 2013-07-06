@@ -84,12 +84,13 @@
 #include <memory>
 #include <sstream>
 #include <exception>
-
+#include <stdexcept>
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
 
-#define MAX_LINE_SIZE 60 // TODO 80
+#define DEFAULT_MAX_LINE_SIZE   70 // TODO 80
+#define DEFAULT_SUB_INDENT_SIZE 4
 
 #define SPLIT_TO_NAME_AND_STR(identifier) identifier, #identifier
 
@@ -332,7 +333,7 @@ inline void replace_all(std::string& where, const std::string& what, const std::
  * @param indent_for_new_lines string that should be used to indent new lines with.
  */
 inline void format_to_max_line_length(std::string& text_to_split,
-                                      size_t max_line_length = MAX_LINE_SIZE,
+                                      size_t max_line_length = DEFAULT_MAX_LINE_SIZE,
                                       std::string indent_for_new_lines="" )
 {
     std::stringstream out;
@@ -405,12 +406,16 @@ inline void append_to_lines(std::string& line,
     line = out.str();
 }
 
-inline void indent_and_trim(std::string& text, size_t indent_len, size_t max_line_len = MAX_LINE_SIZE)
+inline void indent_and_trim(std::string& text,
+                            size_t indent_len,
+                            size_t max_line_len = DEFAULT_MAX_LINE_SIZE,
+                            size_t sub_indent_len = DEFAULT_SUB_INDENT_SIZE)
 {
     std::string new_text(text);
     if(max_line_len > indent_len)
     {
-        format_to_max_line_length(new_text, max_line_len - indent_len, std::string(4, ' '));
+        format_to_max_line_length(new_text, max_line_len - indent_len,
+                                  std::string(sub_indent_len, ' '));
         append_to_lines(new_text, std::string(indent_len, ' '));
         text = new_text;
     }
@@ -444,7 +449,7 @@ public:
                     break;
                     }
 
-                if(s.tellg() == (int)token.length() + 1
+                if((size_t)s.tellg() == (size_t)token.length() + 1
                    && token != "brief") // in case brief was not there..
                 {
                     value = token + get_next_token(s, "@");
@@ -1209,7 +1214,8 @@ public:
                     standalone(false),
                     name(name),
                     params_extracted(0),
-                    indent_size(0)
+                    indent_size(0),
+                    format_flags(f_full_info)
     {
     }
     /**
@@ -1329,99 +1335,42 @@ public:
 
                 const int& number_of_params = num_params();
                 const int& number_of_param_descr = params.size();
-
                 if(number_of_params != number_of_param_descr)
                 {
-                    throw option_error("Error while parsing description of option %s: expected to find %d parameters, "
-                                        "but %d was found", name.c_str(), number_of_params, number_of_param_descr);
+                    std::stringstream err;
+                    err << "Error while parsing description for option \"";
+                    err << name.c_str() << "\": \nexpected to find " << number_of_params;
+                    err << " parameters, but found " << number_of_param_descr << ".";
+                    throw std::runtime_error(err.str());
                 }
+            }
+            catch(option_error&)
+            {
+                // ok, doxy_parser not constructed, carry on
             }
             catch(...)
             {
-                // TODO decide what to do..
+                throw;
             }
         }
     }
 
-
-    friend std::ostream& operator<<(std::ostream &out,  option& o)
+    inline void fmt_usage_only()
     {
-        out << "\n" << std::string(o.indent_size, ' ') << o.name << ": ";
-
-        std::string tmp = o.descr;
-        int sub_indent_size = o.indent_size + o.name.size() - 2; // -2 because of ": "
-        if (sub_indent_size < 3)
-        {
-            sub_indent_size = 3;
-        }
-
-        indent_and_trim(tmp, sub_indent_size);
-        tmp.erase(0, sub_indent_size);
-        out << tmp;
-
-        sub_indent_size = o.name.size() - 5 + o.indent_size;
-        if (sub_indent_size < 0)
-        {
-            sub_indent_size = 3;
-        }
-
-        // add usage
-        out << std::string(sub_indent_size, ' ') << "usage: ";
-        out << o.name << " ";
-
-        try
-        {
-            doxy_dictionary::vector_of_string_pairs& brief = o.doxy_dict.get_occurences("brief");
-            doxy_dictionary::vector_of_string_pairs& params = o.doxy_dict.get_occurences("param");
-
-            if (brief.size() && params.size())
-            {
-                const int& number_of_params = params.size();
-                // list parameters first, i.e. "option_name: <paramxx> <paramxy>"
-                for (int i = 0; i < number_of_params; i++)
-                {
-                    out << "<" + params[i].first + "> "; // name of parameter
-                }
-                out << "\n";
-
-                 // now the description for each of these parameters
-                std::stringstream u(o.usage);
-                std::string curr;
-                for (int i = 0; i < number_of_params; i++)
-                {
-
-                    u >> curr;
-                    curr = curr.substr(1, curr.size() - 2);
-                    #ifdef ENDL_BETWEEN_OPTION_DESC
-                    if (i != 0)
-                    {
-                        out << std::string(8, ' ');
-                    }
-                    #endif
-                    curr = params[i].first + " (" + curr + "): "; // name
-                    indent_and_trim(curr, sub_indent_size + 3);
-                    curr.erase(curr.find_last_of("\n"), curr.size());
-                    curr += params[i].second; // description
-                    indent_and_trim(curr, sub_indent_size + 3);
-                    curr.erase(curr.find_last_of(" "), curr.size());
-                    #ifdef ENDL_BETWEEN_OPTION_DESC
-                    out << "\n" ;
-                    #endif
-                    out << curr << "\n";
-                }
-            }
-        } catch (...)
-        {
-            // This will happen if option params were not extracted with the doxydict.
-            out << o.usage;
-        }
-        return out;
+        format_flags = option::f_usage_only;
     }
 
-    void set_indent(int num_letters)
+    inline void fmt_full_info()
     {
-        indent_size = num_letters;
+        format_flags = option::f_full_info;
     }
+
+    void fmt_set_indent(int num_of_characters)
+    {
+        indent_size = num_of_characters;
+    }
+
+    friend std::ostream& operator<<(std::ostream &out,  option& o);
 
     virtual int num_params()
     {
@@ -1447,10 +1396,105 @@ public:
     Container not_wanted_options;
 
     doxy_dictionary doxy_dict;
-
     size_t params_extracted;
     int indent_size;
+
+    enum formatting_flags
+    {
+        f_full_info = 0,
+        f_usage_only = 1
+    };
+    int format_flags;
 };
+
+inline std::ostream& operator<<(std::ostream &out,  option& o)
+{
+    out << "\n";
+    int sub_indent_size = 0;
+    if(o.format_flags != option::f_usage_only)
+    {
+        out << std::string(o.indent_size, ' ') << o.name << ": ";
+        std::string tmp = o.descr;
+        sub_indent_size = o.indent_size + o.name.size() - 2; // -2 because of ": "
+        if (sub_indent_size < 3)
+        {
+            sub_indent_size = 3;
+        }
+        indent_and_trim(tmp, sub_indent_size, DEFAULT_MAX_LINE_SIZE - o.name.size());
+        tmp.erase(0, sub_indent_size);
+        out << tmp;
+    }
+    else // always reset them to full afterwards..
+    {
+        o.format_flags = option::f_full_info;
+    }
+
+    sub_indent_size = o.name.size() - 5 + o.indent_size;
+    if (sub_indent_size < 0)
+    {
+        sub_indent_size = 3;
+    }
+
+    // add usage
+    try
+    {
+        doxy_dictionary::vector_of_string_pairs& brief = o.doxy_dict.get_occurences("brief");
+        doxy_dictionary::vector_of_string_pairs& params = o.doxy_dict.get_occurences("param");
+
+        if (brief.size() && params.size())
+        {
+            const int& number_of_params = params.size();
+            std::stringstream s;
+            s << "usage: " << o.name << " ";
+
+            // list parameters first, i.e. "option_name: <paramxx> <paramxy>"
+            for (int i = 0; i < number_of_params; i++)
+            {
+                s << "<" << params[i].first << "> "; // name of parameter
+            }
+            std::string first_line(s.str());
+            indent_and_trim(first_line, sub_indent_size,
+                            DEFAULT_MAX_LINE_SIZE + sub_indent_size + 8,
+                            o.name.size() + 8); // indent by "usage: option_name"
+            out << first_line;
+
+             // now the description for each of these parameters
+            std::stringstream u(o.usage);
+            std::string curr;
+            for (int i = 0; i < number_of_params; i++)
+            {
+                u >> curr;
+                replace_all(curr, "<", "(");
+                replace_all(curr, ">", ")");
+                #ifdef ENDL_BETWEEN_OPTION_DESC
+                if (i != 0)
+                {
+                    out << std::string(8, ' ');
+                }
+                #endif
+                curr = params[i].first + " " + curr + ": "; // name
+                indent_and_trim(curr, sub_indent_size + 3);
+                curr.erase(curr.find_last_of("\n"), curr.size());
+                curr += params[i].second; // description
+                indent_and_trim(curr, sub_indent_size + 3);
+                curr.erase(curr.find_last_of(" "), curr.size());
+                #ifdef ENDL_BETWEEN_OPTION_DESC
+                out << "\n" ;
+                #endif
+                out << curr << "\n";
+            }
+        }
+    } catch (...)
+    {
+        // This will happen if option params were not extracted with the doxydict.
+        out << std::string(sub_indent_size, ' ');
+        out << "usage: " << o.name << " " << o.usage;
+    }
+    return out;
+}
+
+
+
 
 /**
  * @brief Template for options taking no parameters.
@@ -2156,7 +2200,7 @@ public:
                 const std::string& s = *oi;
                 option* o = find_option(s);
                 // TODO: could assert here, just as a sanity check for development / changess
-                o->set_indent(max_cmd_len-s.length());
+                o->fmt_set_indent(max_cmd_len-s.length());
                 help_content << *o;
                 help_content << "\n\n";
             }
@@ -2316,7 +2360,7 @@ public:
         if (default_option != NULL)
         {
             // print option name and description..
-            default_option->set_indent(3);
+            default_option->fmt_set_indent(3);
             if(!default_option->name.size())
             {
                 default_option->name = program_name;
@@ -2671,7 +2715,6 @@ protected:
                 program_name.erase(0, path_end + 1);
             }
         }
-
         if (argc > 1)
         {
             int cnt = 1;
@@ -2732,6 +2775,10 @@ protected:
                 {
                     s << "\n " << program_name << ": ";
                     indent_size = program_name.size();
+                    if (opt->name.length() == 0)
+                    {
+                        opt->name = program_name;
+                    }
                 }
 
                 std::string indent(indent_size + 3, ' ');
@@ -2749,6 +2796,9 @@ protected:
                 }
 
                 s << e.what() << "\n";
+                opt->fmt_usage_only();
+                opt->fmt_set_indent(3);
+                s << *opt << "\n";
 
                 throw option_error("%s\n", s.str().c_str());
             }
@@ -2867,7 +2917,8 @@ protected:
             {
                 try_to_extract_params(default_option, cmd_line);
                 result = true;
-            } catch (option_error& e)
+            }
+            catch (option_error& e)
             {
                 std::cout << e.what() << std::endl;
             }
@@ -2909,7 +2960,7 @@ protected:
                         err_msg << "but nothing was specified.";
                     }
                     err_msg << "\ntry " << help_options << " to see usage.\n";
-                    std::cout << program_name << ": " << err_msg.str() << "\n";
+                    std::cout << "\n" << program_name << ": " << err_msg.str() << "\n";
                     return false;
                 }
             }
@@ -2920,10 +2971,12 @@ protected:
                 std::vector<std::string> isect = get_set_intersection(optons_required_any_of, execute_list);
                 if (isect.size() == 0)
                 {
-                    err_msg << "at least one of the following option(s) is required: \n ";
-                    err_msg << merge_items_to_string(optons_required_any_of);
+                    err_msg << "at least one of the following option(s) is required:\n";
+                    std::string require_list = merge_items_to_string(optons_required_any_of);
+                    indent_and_trim(require_list, 2);
+                    err_msg << require_list;
                     err_msg << "\n\ntry " << help_options << " to see usage.\n";
-                    std::cout << program_name << ": " << err_msg.str() << "\n";
+                    std::cout << "\n" << program_name << ": " << err_msg.str() << "\n";
                     return false;
                 }
             }
@@ -2941,7 +2994,7 @@ protected:
                 }
                 catch (option_error& e)
                 {
-                    std::cout << program_name << ": " <<  e.what() << std::endl;
+                    std::cout << "\n" << program_name << ": " <<  e.what() << std::endl;
 
                     // should skip any execution if options were not right.
                     execute_list.clear();
