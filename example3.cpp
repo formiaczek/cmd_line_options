@@ -82,14 +82,14 @@ int main(int argc, char **argv)
     desc << "with the mix of defined-options and other arguments. All arguments\n";
     desc << "that are not recognised as option / params for defined options\n";
     desc << "will be passed to a registered handler after all option-handlers have\n";
-    desc << "executed\n";
+    desc << "executed.\n";
     desc << "Author: Lukasz Forynski (lukasz.forynski@gmail.com)";
     parser.set_description(desc.str());
 
 
     parser.add_option(print_on_screen,
                       "print",
-                      "@brief prints specified string number of times on the screen."
+                      "@brief prints specified string number of times on the screen." // note using doxygen tags
                       "@param what String to be printed."
                       "@param how_many_times Number of times it should be printed.");
 
@@ -115,26 +115,35 @@ $ ./example3 ?
 
 example3, version: 0.0.1
 
-This is an example of how to use cmd_line_options library
-with the mix of defined-options and other arguments. All arguments
-that are not recognised as option / params for defined options
-will be passed to a registered handler after all option-handlers have
-executed
-Author: Lukasz Forynski (lukasz.forynski@gmail.com)
+ This is an example of how to use cmd_line_options library
+ with the mix of defined-options and other arguments. All arguments
+ that are not recognised as option / params for defined options
+ will be passed to a registered handler after all option-handlers have
+ executed.
+ Author: Lukasz Forynski (lukasz.forynski@gmail.com)
 
-Use "?", "-h" or "--help" to print more information.
 
 Options:
-  hello_few_times : prints "hello" a specified number of times
-            usage : hello_few_times <int>
 
-  hello           : prints "hello world"
-            usage : hello
+ print: prints specified string number of times on the screen.
+ usage: print <what> <how_many_times>
+    what(string): String to be printed.
+    how_many_times(int): Number of times it should be printed.
 
-  --dp            : optional parameter..
-            usage : --dp <int>(optional=14)
 
- ____________________________________
+ hello: prints "hello world"
+ usage: hello
 
- */
+
+  --dp: optional parameter..
+ usage: --dp <int>(optional=14)
+
+
+example3: at least one of the following option(s) is required:
+  "print", "hello"
+
+
+try "?", "-h" or "--help" to see usage.
+
+ ____________________________________ */
 

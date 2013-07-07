@@ -46,9 +46,10 @@ int main(int argc, char **argv)
     parser.set_description("This is an example of how to use cmd_line_options library\n"
                            "Author: Lukasz Forynski (lukasz.forynski@gmail.com)");
 
-    // leave option name empty = and it will become a 'default' option
-    parser.add_option(handle_program_options, "", "@brief Prints a string number of times. @param what string to print."
-                                                  "                        @param num_times number of times it should be printed.");
+    parser.add_option(handle_program_options,
+                      "", // leave option name empty = and it will become a 'default' option
+                      "@brief Prints a string number of times. @param what string to print."
+                      "@param num_times number of times it should be printed.");
     // Note, that when such an option is defined - no other option can be added / defined (add_option would throw option-error in such case)
     // Note2: You still can can also add handler for all other cmd-line params in such case(see example3.cpp).
 
@@ -71,12 +72,14 @@ $ ./example0  ?
 
 example0, version: 0.0.1
 
-This is an example of how to use cmd_line_options library
-Author: Lukasz Forynski (lukasz.forynski@gmail.com)
+ This is an example of how to use cmd_line_options library
+ Author: Lukasz Forynski (lukasz.forynski@gmail.com)
 
-Use "?", "-h" or "--help" to print more information.
 
- Example (optional) description for option
-     usage : example0 <string> <int>
+   example0: Prints a string number of times.
+      usage: example0 <what> <num_times>
+         what(string): string to print.
+         num_times(int): number of times it should be printed.
+
  */
 

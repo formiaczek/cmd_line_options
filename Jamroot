@@ -12,22 +12,22 @@ build-project  test ;
 
 exe example0
   :
-  example0.cpp 
+  example0.cpp
   ;
 
 exe example1
   :
-  example1.cpp 
+  example1.cpp
   ;
 
 exe example2
   :
-  example2.cpp 
+  example2.cpp
   ;
 
 exe example3
   :
-  example3.cpp 
+  example3.cpp
   ;
 
 install copy_binaries
