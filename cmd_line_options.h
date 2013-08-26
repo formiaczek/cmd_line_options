@@ -283,16 +283,17 @@ inline Container<Type> get_set_difference(const Container<Type>& c1, const Conta
 /**
  * @brief helper template function that merges items of the container into a string.
  * @param container reference to a source container.
- * @param parenthesis (optional) - default parenthesis in which each of the values will be inserted
+ * @param use_parenthesis (optional) - If set to true, each item will be 'wrapped' in parenthesis
  * @param separator (optional) - separator that will be placed between values
  * @return resulting string.
  */
 template< template < class X, class All = std::allocator<X> > class Container, class Type>
 inline std::string merge_items_to_string(const Container<Type>& container,
-                                        char parenthesis = '\"',
+                                        bool use_parenthesis = true,
                                         char separator=',')
 {
     std::stringstream result;
+    std::string parenthesis = use_parenthesis ? "\"" : "";
     typename Container<Type>::const_iterator i;
     for (i = container.begin(); i != container.end(); i++)
     {
@@ -316,8 +317,8 @@ inline void replace_all(std::string& where, const std::string& what, const std::
     size_t start = 0;
     while((start = where.find(what, start)) != std::string::npos)
     {
-             where.replace(start, what.length(), with);
-             start += with.length();
+         where.replace(start, what.length(), with);
+         start += with.length();
     }
 }
 
@@ -1825,6 +1826,73 @@ protected:
     P5 p5;
 };
 
+template<typename Fcn, typename P1, typename P2, typename P3, typename P4, typename P5, typename P6>
+class option_6_params: public option
+{
+public:
+    /**
+     * @brief Constructor.
+     * @param name - name of the option.
+     *        This name is used as a keyword to select this option on the command line.
+     *        It also prepares a 'usage' string based on parameter types.
+     */
+    option_6_params(Fcn f_ptr, std::string& name) :
+                    option(name), f(f_ptr)
+    {
+        usage = param_extractor<P1>::usage() + " ";
+        usage += param_extractor<P2>::usage() + " ";
+        usage += param_extractor<P3>::usage() + " ";
+        usage += param_extractor<P4>::usage() + " ";
+        usage += param_extractor<P5>::usage() + " ";
+        usage += param_extractor<P6>::usage();
+    }
+
+    /**
+     * @brief  Attempts to extract the parameter.
+     * @param  input stream from which next token points to the parameter that needs to be extracted.
+     * @throws option_error if param can't be extracted.
+     */
+    virtual void extract_params(std::stringstream& cmd_line_options)
+    {
+        p1 = param_extractor<P1>::extract(cmd_line_options);
+        params_extracted++;
+        p2 = param_extractor<P2>::extract(cmd_line_options);
+        params_extracted++;
+        p3 = param_extractor<P3>::extract(cmd_line_options);
+        params_extracted++;
+        p4 = param_extractor<P4>::extract(cmd_line_options);
+        params_extracted++;
+        p5 = param_extractor<P5>::extract(cmd_line_options);
+        params_extracted++;
+        p6 = param_extractor<P6>::extract(cmd_line_options);
+    }
+
+    /**
+     * @brief Attempts to extract parameters and, on success - it calls the requested function.
+     * @param input stream from which next and following tokens point to next parameters that need to be extracted.
+     */
+    virtual void execute()
+    {
+        f(p1, p2, p3, p4, p5, p6);
+    }
+protected:
+    virtual int num_params()
+    {
+        return 6;
+    }
+
+    option_6_params()
+    {
+    }
+    Fcn f;
+    P1 p1;
+    P2 p2;
+    P3 p3;
+    P4 p4;
+    P5 p5;
+    P6 p6;
+};
+
 template<typename Fcn, typename ObjType>
 class option_no_params_pass_obj: public option
 {
@@ -2089,6 +2157,71 @@ protected:
     P4 p4;
 };
 
+template<typename Fcn, typename ObjType, typename P1, typename P2, typename P3, typename P4, typename P5>
+class option_5_params_pass_obj: public option
+{
+public:
+    /**
+     * @brief Constructor.
+     * @param name - name of the option.
+     *        This name is used as a keyword to select this option on the command line.
+     *        It also prepares a 'usage' string based on parameter types.
+     */
+    option_5_params_pass_obj(Fcn f_ptr, ObjType* obj_address, std::string& name) :
+                    option(name), f(f_ptr), obj_addr(obj_address)
+    {
+        usage = param_extractor<P1>::usage() + " ";
+        usage += param_extractor<P2>::usage() + " ";
+        usage += param_extractor<P3>::usage() + " ";
+        usage += param_extractor<P4>::usage() + " ";
+        usage += param_extractor<P5>::usage();
+    }
+    /**
+     * @brief  Attempts to extract the parameter.
+     * @param  input stream from which next token points to the parameter that needs to be extracted.
+     * @throws option_error if param can't be extracted.
+     */
+    virtual void extract_params(std::stringstream& cmd_line_options)
+    {
+        p1 = param_extractor<P1>::extract(cmd_line_options);
+        params_extracted++;
+        p2 = param_extractor<P2>::extract(cmd_line_options);
+        params_extracted++;
+        p3 = param_extractor<P3>::extract(cmd_line_options);
+        params_extracted++;
+        p4 = param_extractor<P4>::extract(cmd_line_options);
+        params_extracted++;
+        p5 = param_extractor<P5>::extract(cmd_line_options);
+    }
+
+    /**
+     * @brief Attempts to extract parameters and, on success - it calls the requested function,
+     *        passing both: the address of object and extracted parameters.
+     * @param input stream from which next and following tokens point to next parameters that need to be extracted.
+     */
+    virtual void execute()
+    {
+        f(obj_addr, p1, p2, p3, p4, p5);
+    }
+protected:
+    virtual int num_params()
+    {
+        return 5;
+    }
+
+
+    option_5_params_pass_obj() :
+                    obj_addr(NULL)
+    {
+    }
+    Fcn f;
+    ObjType* obj_addr;
+    P1 p1;
+    P2 p2;
+    P3 p3;
+    P4 p4;
+    P5 p5;
+};
 
 /**
  * @brief Wrapper class used to keep options and information about their groups etc.
@@ -2606,6 +2739,10 @@ public:
     void add_option(RetType function_ptr(P1, P2, P3, P4, P5), std::string name,
                     std::string description);
 
+    template<class RetType, typename P1, typename P2, typename P3, typename P4, typename P5, typename P6>
+    void add_option(RetType function_ptr(P1, P2, P3, P4, P5, P6), std::string name,
+                    std::string description);
+
 // adding options for functions taking pointer (to object) as a first parameter
     template<class RetType, typename ObjType>
     void add_option(RetType function_ptr(ObjType*), ObjType* obj_address, std::string name,
@@ -2625,6 +2762,10 @@ public:
 
     template<class RetType, typename ObjType, typename P1, typename P2, typename P3, typename P4>
     void add_option(RetType function_ptr(ObjType*, P1, P2, P3, P4), ObjType* obj_address,
+                    std::string name, std::string description);
+
+    template<class RetType, typename ObjType, typename P1, typename P2, typename P3, typename P4, typename P5>
+    void add_option(RetType function_ptr(ObjType*, P1, P2, P3, P4, P5), ObjType* obj_address,
                     std::string name, std::string description);
 protected:
     /**
@@ -3135,8 +3276,6 @@ inline void cmd_line_parser::add_option(RetType function_ptr(P1, P2, P3, P4), st
  * @brief Adds another option to your command-line parser.
  *        This template takes a function of type:
  *        func(P1, P2, P3, P4, P5) as a prototype for the option.
- *  Note: Defining templates for options (functions) taking more than 5 parameters would be a little bit crazy!!
- *        In fact, 5 is crazy already, but feel free to copy-paste-extend more templates if you really need more :P
  * Description is similar to other similar add_option method templates.
  */
 template<class RetType, typename P1, typename P2, typename P3, typename P4, typename P5>
@@ -3149,6 +3288,27 @@ inline void cmd_line_parser::add_option(RetType function_ptr(P1, P2, P3, P4, P5)
     STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P4);
     STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P5);
     add_option(new option_5_params<RetType (*)(P1, P2, P3, P4, P5), P1, P2, P3, P4, P5>(function_ptr, name),
+               description);
+}
+
+/**
+ * @brief Adds another option to your command-line parser.
+ *        This template takes a function of type:
+ *        func(P1, P2, P3, P4, P5, P6) as a prototype for the option.
+ * Description is similar to other similar add_option method templates.
+ */
+// (TODO: really need variadic-template version of this!)
+template<class RetType, typename P1, typename P2, typename P3, typename P4, typename P5, typename P6>
+inline void cmd_line_parser::add_option(RetType function_ptr(P1, P2, P3, P4, P5, P6), std::string name,
+                std::string description)
+{
+    STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P1);
+    STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P2);
+    STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P3);
+    STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P4);
+    STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P5);
+    STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P6);
+    add_option(new option_6_params<RetType (*)(P1, P2, P3, P4, P5, P6), P1, P2, P3, P4, P5, P6>(function_ptr, name),
                description);
 }
 
@@ -3243,7 +3403,6 @@ inline void cmd_line_parser::add_option(RetType function_ptr(ObjType*, P1, P2, P
  * @brief Adds another option to your command-line parser.
  *        This template takes a function of type:
  *        func(ObjType*, P1, P2, P3, P4) as a prototype for the option.
- *  Note: Defining templates for options (functions) taking more than 5 parameters would be a little bit crazy!!
  *        In fact, 5 is crazy already, but feel free to copy-paste-extend more templates if you really need more :P
  * Description is similar to other add_option method templates that take ObjType parameter.
  */
@@ -3256,6 +3415,27 @@ inline void cmd_line_parser::add_option(RetType function_ptr(ObjType*, P1, P2, P
     STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P3);
     STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P4);
     add_option(new option_4_params_pass_obj<RetType (*)(ObjType*, P1, P2, P3, P4), ObjType, P1, P2, P3, P4>(
+                    function_ptr, obj_address, name),
+                    description);
+}
+
+/**
+ * @brief Adds another option to your command-line parser.
+ *        This template takes a function of type:
+ *        func(ObjType*, P1, P2, P3, P4, P5) as a prototype for the option.
+ * Description is similar to other add_option method templates that take ObjType parameter.
+ */
+//(TODO: really need variadic-template version of this!)
+template<class RetType, typename ObjType, typename P1, typename P2, typename P3, typename P4, typename P5>
+inline void cmd_line_parser::add_option(RetType function_ptr(ObjType*, P1, P2, P3, P4, P5),
+                ObjType* obj_address, std::string name, std::string description)
+{
+    STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P1);
+    STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P2);
+    STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P3);
+    STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P4);
+    STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P5);
+    add_option(new option_5_params_pass_obj<RetType (*)(ObjType*, P1, P2, P3, P4, P5), ObjType, P1, P2, P3, P4, P5>(
                     function_ptr, obj_address, name),
                     description);
 }
