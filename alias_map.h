@@ -1,8 +1,31 @@
 /**
- * alias_map.h
+ * @file   alias_map.h
+ * @date   26 Aug 2013
+ * @author lukasz.forynski@gmail.com
+ * @brief  Map aggregate allowing to add multiple keys (aliases) for map items.
  *
- *  Created on: 26 Aug 2013
- *      Author: forma
+ * ___________________________
+ *
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013 Lukasz Forynski
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION
  */
 
 #ifndef ALIAS_MAP_H_
@@ -14,17 +37,22 @@
 #include <sstream>
 #include <stdexcept>
 
+/**
+ * @brief map allowing to create aliases (multiple keys of the same type) that could be
+ *        used to access items this map holds.
+ */
 template<typename KeyType, typename ObjType>
 class alias_map
 {
-
     typedef std::list<KeyType> aliases_container;
     typedef std::pair<ObjType, aliases_container> obj_wrapper;
     typedef std::list<obj_wrapper> obj_container;
     typedef std::map<KeyType, obj_wrapper*> obj_mapping;
 
 public:
-
+    /**
+     * @brief Adds/creates a new element into the map.
+     */
     void add_object(const KeyType& key, const ObjType& obj)
     {
         throw_if_found(key, __FUNCTION__);
@@ -35,6 +63,17 @@ public:
         mapping.insert(std::make_pair(key, &(*o)));
     }
 
+    /**
+     * @brief Inserts a new element into the map.
+     */
+    void insert(const std::pair<KeyType, ObjType>& item)
+    {
+        add_object(item.first, item.second);
+    }
+
+    /**
+     * @brief Removes element from the map.
+     */
     void remove_object(const KeyType& key)
     {
         throw_if_not_found(key, __FUNCTION__);
@@ -61,12 +100,24 @@ public:
         }
     }
 
+    /**
+     * @brief Removes element from the map.
+     */
+    void erase(const KeyType& item)
+    {
+        remove_object(item);
+    }
+
+
     ObjType& operator[](const KeyType& key)
     {
         throw_if_not_found(key, __FUNCTION__);
         return mapping[key]->first;
     }
 
+    /**
+     * @brief Creates and adds a new alias for an existing element held by the map.
+     */
     void add_alias(const KeyType& existing_key, const KeyType& new_alias)
     {
         throw_if_not_found(existing_key, __FUNCTION__);
@@ -77,6 +128,10 @@ public:
         mapping.insert(std::make_pair(new_alias, w));
     }
 
+    /**
+     * @brief Removes alias to an existing element held by the map.
+     *        If this element had only this one alias - it will be removed (erased).
+     */
     void remove_alias(const KeyType& alias_or_key)
     {
         throw_if_not_found(alias_or_key, __FUNCTION__);
@@ -93,6 +148,9 @@ public:
         }
     }
 
+    /**
+     * @brief Returns number of elements this map holds.
+     */
     size_t size()
     {
         return objects.size();
@@ -111,7 +169,6 @@ private:
         throw_if(key, fcn_name, false);
     }
 
-
     void throw_if(const KeyType& key, const char* fcn_name, bool found = false)
     {
         if((mapping.find(key) == mapping.end()) ^ found)
@@ -129,17 +186,26 @@ private:
 };
 
 
+
+/**
+ * @brief dummy-macro based test-framework for checking conditions.
+ */
 #define TEST_COND_(_cond_) ({ if(!(_cond_)) { \
                                std::stringstream s; s << "test error: assertion at line: " << __LINE__ << "\n"; \
                                throw std::runtime_error(s.str()); } })
 
+/**
+ * @brief dummy-macro based test-framework for checking if statement throws an exception.
+ */
 #define TEST_THROWS_(_st_) ({ bool failed = true; try { (_st_); \
                             } catch(...) {failed = false;} \
                             if(failed) { std::stringstream s; \
                             s << "test error: statement at line: " << __LINE__ << " should throw an exception!\n"; \
                             throw std::runtime_error(s.str()); }})
 
-
+/**
+ * @brief basic unit-tests to excercise the map.
+ */
 inline void test_alias_map()
 {
     try
