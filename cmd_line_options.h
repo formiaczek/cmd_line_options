@@ -71,10 +71,6 @@
 #ifndef CMD_LINE_OPTIONS_
 #define CMD_LINE_OPTIONS_
 
-
-
-#define NEW_VERSION
-
 #include <set>
 #include <map>
 #include <vector>
@@ -1111,13 +1107,13 @@ public:
      *       specified with default parameter (using OPTIONAL_VALUE) with the value
      *       (see description of OPTIONAL_VALUE).
      */
-    optional_value(T val) :
+    optional_value(const T& val) :
                     value(val)
     {
     }
 
     /**
-     * @brief Getter..
+     * @brief Setter..
      */
     void set_value(T val)
     {
@@ -1125,15 +1121,24 @@ public:
     }
 
     /**
-     * @brief Setter..
+     * @brief Getter..
      */
-    T get_value()
+    T& get_value()
+    {
+        return value;
+    }
+
+    /**
+     * @brief Conversion operator..
+     */
+    operator T()
     {
         return value;
     }
 
     T value;
 };
+
 
 /**
  * @brief Specialisation of param_extractor for "optional_value" type.
@@ -1187,14 +1192,14 @@ public:
  * @code
  * void fuc(int required_param1, OPTIONAL_VALUE(int, param2, 128)
  * {
- *    param2.get_val()  => will have a value that was specified, otherwise (if no proper integer specified) it will be 128.
+ *    std::cout << param2;  => will print a value that was specified, otherwise (if no proper integer specified) it will print 128 (default).
  * }
  *  // note also, that this function can be used in rest of the program as standard overloaded function, e.g.:
  *  // e.g.: without specifying this param, e.g.:
- *  func(12); // 128 will be returned by get_val()
+ *  func(12); // 128 will be used for param2
  *
  *  // or providing it:
- *  func(12, 324); // 324 will now be returned by get_val()
+ *  func(12, 324); // 324 will now be used for param2
  * @endcode
  */
 #define OPTIONAL_VALUE(type, name, value) optional_value<type, value> name = optional_value<type, value>()
@@ -2332,7 +2337,7 @@ public:
             {
                 const std::string& s = *oi;
                 option* o = find_option(s);
-                // TODO: could assert here, just as a sanity check for development / changess
+                // TODO: could assert here, just as a sanity check for development / changes
                 o->fmt_set_indent(max_cmd_len-s.length());
                 help_content << *o;
                 help_content << "\n\n";

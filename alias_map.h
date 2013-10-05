@@ -49,7 +49,51 @@ class alias_map
     typedef std::list<obj_wrapper> obj_container;
     typedef std::map<KeyType, obj_wrapper*> obj_mapping;
 
+
 public:
+    class iterator_wrapper: public obj_container::iterator
+    {
+    public:
+        typedef typename obj_container::iterator parent_type;
+
+        /**
+         * @brief Default constructor.
+         */
+        iterator_wrapper()
+        {
+        }
+
+        /**
+         * @brief "Conversion" constructor..
+         */
+        iterator_wrapper(const parent_type& m) :
+             parent_type(m)
+        {
+        }
+
+        ObjType& operator*() const
+        {
+            return parent_type::operator*().first;
+        }
+
+        ObjType* operator->() const
+        {
+            return &parent_type::iterator::operator->().first;
+        }
+
+        /**
+         * @brief Returns reference to the key of the element pointed by this iterator
+         */
+        const aliases_container& aliases() const
+        {
+            return parent_type::operator*().second;
+        }
+    };
+
+    typedef iterator_wrapper iterator;
+    typedef iterator_wrapper const_iterator;
+    typedef typename aliases_container::const_iterator aliases_iterator;
+
     /**
      * @brief Adds/creates a new element into the map.
      */
@@ -156,6 +200,77 @@ public:
         return objects.size();
     }
 
+    /**
+     * @brief Begin iterator for the container
+     */
+    iterator begin()
+    {
+        return objects.begin();
+    }
+
+    /**
+     * @brief Begin const iterator for the container
+     */
+    const_iterator begin() const
+    {
+        return objects.begin(); // list_iterator_wrapper conversion operator will allow this..
+    }
+
+    /**
+     * @brief End iterator for the container
+     */
+    iterator end()
+    {
+        return objects.end();
+    }
+
+    /**
+     * @brief End const iterator for the container
+     */
+    const_iterator end() const
+    {
+        return objects.end();
+    }
+
+    iterator find(const KeyType& alias_or_key)
+    {
+        typename obj_mapping::iterator m = mapping.find(alias_or_key);
+        if(m != mapping.end())
+        {
+            typename obj_container::iterator o;
+            for (o = objects.begin(); o != objects.end(); o++)
+            {
+                obj_wrapper* obj_ptr = &(*o);
+                obj_wrapper* mapping_ptr = m->second;
+
+                if(obj_ptr == mapping_ptr)
+                {
+                    return iterator(o); // make conversion here..
+                }
+            }
+        }
+        return end();
+    }
+
+    const_iterator find(const KeyType& alias_or_key) const
+    {
+        typename obj_mapping::iterator m = mapping.find(alias_or_key);
+        if(m != mapping.end())
+        {
+            typename obj_container::iterator o;
+            for (o = objects.begin(); o != objects.end(); o++)
+            {
+                obj_wrapper* obj_ptr = &(*o);
+                obj_wrapper* mapping_ptr = m->second;
+
+                if(obj_ptr == mapping_ptr)
+                {
+                    return iterator(o); // make conversion here..
+                }
+            }
+        }
+        return end();
+    }
 
 private:
 
@@ -204,8 +319,9 @@ private:
                             throw std::runtime_error(s.str()); }})
 
 /**
- * @brief basic unit-tests to excercise the map.
+ * @brief basic unit-tests to exercise the map.
  */
+#include <iostream>
 inline void test_alias_map()
 {
     try
@@ -225,7 +341,22 @@ inline void test_alias_map()
 
     TEST_THROWS_(m.add_alias("first", "1")); // try adding alias again
 
+    alias_map<std::string, std::string>::iterator i;
+
+    i = m.find("1");
+    TEST_COND_(i != m.end());
+    TEST_COND_(*i == "the first!");
+
+    alias_map<std::string, std::string>::iterator j;
+    j = m.find("first");
+    TEST_COND_(j != m.end());
+    TEST_COND_(j == j);
+    TEST_COND_(*j == "the first!");
+
     m.remove_alias("1");
+    i = m.find("1");
+    TEST_COND_(i == m.end());
+
     TEST_THROWS_( m["1"] += "abc" );
     TEST_THROWS_( m.remove_alias("1") ); // can't remove alias: it doesn't exist
 
@@ -246,6 +377,31 @@ inline void test_alias_map()
     m.remove_object("2");
     TEST_THROWS_( m["second"] += "abc" );
     TEST_COND_(m.size() == 0);
+
+
+    m.add_object("first", "the first!");
+    m.add_alias("first", "one");
+    m.add_alias("first", "1");
+
+    m.add_object("second", "the Second!");
+    m.add_alias("second", "2");
+    m.add_alias("2", "two");
+
+    m.add_object("third", "the third!");
+    m.add_alias("third", "3");
+    m.add_alias("3", "the3");
+
+    alias_map<std::string, std::string>::aliases_iterator a;
+    for (i = m.begin(); i != m.end(); i++)
+    {
+        for (a = i.aliases().begin(); a != i.aliases().end(); a++)
+        {
+            std::cout << *a << " ";
+        }
+
+        std::string& k = *i;
+        std::cout <<" => " << k << "\n";
+    }
 
     std::cout << "all tests passed OK!";
     }

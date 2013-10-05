@@ -37,7 +37,7 @@ void print_on_screen(std::string what, int how_many_times)
 void default_param(OPTIONAL_VALUE(int, param2, 14))
 {
     PRINT_FCN_NAME;
-    std::cout << param2.get_value() << std::endl;
+    std::cout << param2 << std::endl;
 
     std::string s;
 }
