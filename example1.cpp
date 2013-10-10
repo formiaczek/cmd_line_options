@@ -79,7 +79,7 @@ int main(int argc, char **argv)
 
 
     parser.add_group("Printing options");
-    parser.add_option(hello_few_times, "hello_few_times", "prints \"hello\" a specified number of times");
+    parser.add_option(hello_few_times, "-x,hello_few_times", "prints \"hello\" a specified number of times");
 
     MyObject my_obj;
     parser.add_option(update_my_object, &my_obj, "update_my_object", "Updates something (..)");
@@ -91,11 +91,10 @@ int main(int argc, char **argv)
 
     parser.add_option(say, "say", "will just print what you typed");
 
-
     parser.add_group("Other options");
-    parser.add_option(do_something, "-d_sth", "does something (...)");
+    parser.add_option(do_something, "-d,d_sth", "does something (...)");
 
-    parser.setup_options_require_all("-d_sth, hello_few_times");
+    parser.setup_options_require_all("-d, -x");
 
     // this starts the parser..
     // All cmd-line parameters will be executed, and if options are recognised/params for them
@@ -119,33 +118,37 @@ int main(int argc, char **argv)
 
  ~$ example1 ?
 
- example1, version: 0.0.1
+example1, version: 0.0.1
 
  This is an example of how to use cmd_line_options library
  Author: Lukasz Forynski (lukasz.forynski@gmail.com)
 
- Use "?", "-h" or "--help" to print more information.
 
- Printing options:
-   hello_few_times   : prints "hello" a specified number of times
-               usage : hello_few_times <int>
+Printing options:
 
-   update_my_object  : Updates something (..)
-               usage : update_my_object <string>
-
-   print_hello_world : prints "hello world"
-               usage : print_hello_world
-
-   say               : will just print what you typed
-               usage : say <string> <string>
+ -x,hello_few_times: prints "hello" a specified number of times
+              usage: -x <int>
 
 
- Other options:
-   -d_sth            : does something (...)
-               usage : -d_sth <char> <double> <unsigned long>
+   update_my_object: Updates something (..)
+              usage: update_my_object <string>
+
+
+  print_hello_world: prints "hello world"
+              usage: print_hello_world
+
+
+                say: will just print what you typed
+              usage: say <string> <string>
+
+
+Other options:
+
+           -d,d_sth: does something (...)
+              usage: -d <char> <double> <unsigned long>
  ____________________________________
 
- $ ./example  -d_sth wfa
+ $ ./example  d_sth wfa
 
  Error when parsing parameters, expected: <char>, got "wfa".
 

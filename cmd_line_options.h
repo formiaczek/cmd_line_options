@@ -84,6 +84,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include "alias_map.h"
 
 #define DEFAULT_MAX_LINE_SIZE   70 // TODO 80
 #define DEFAULT_SUB_INDENT_SIZE 4
@@ -234,6 +235,27 @@ inline std::string get_next_token(std::stringstream& from, std::string delimiter
         }
     }
     return next_token;
+}
+
+inline std::vector<std::string> split(const std::string& tokens, const std::string& delims=" ,")
+{
+    std::vector<std::string> res;
+    std::stringstream s(tokens);
+    std::string next_token;
+
+    while (true)
+    {
+        next_token = get_next_token(s, delims);
+        if(next_token.length() > 0)
+        {
+            res.push_back(next_token);
+        }
+        else
+        {
+            break;
+        }
+    }
+    return res;
 }
 
 /**
@@ -1213,12 +1235,12 @@ class option
 public:
     /**
      * @brief Constructor.
-     * @param  name - name of the option. It will be used also as a key that the option
+     * @param  option_name - name of the option. It will be used also as a key that the option
      *         is selected from the command line.
      */
-    option(std::string& name) :
+    option(std::string& option_name) :
                     standalone(false),
-                    name(name),
+                    name(option_name),
                     params_extracted(0),
                     indent_size(0),
                     format_flags(f_full_info)
@@ -1242,7 +1264,7 @@ public:
     /**
      * @brief adds another option that this option requires
      */
-    void add_required_option(std::string option_name)
+    void add_required_option(const std::string& option_name)
     {
         required_options.push_back(option_name);
     }
@@ -1250,7 +1272,7 @@ public:
     /**
      * @brief adds another option that this option must not be specified with.
      */
-    void add_not_wanted_option(std::string option_name)
+    void add_not_wanted_option(const std::string& option_name)
     {
         not_wanted_options.push_back(option_name);
     }
@@ -1268,7 +1290,7 @@ public:
      * @param all_specified_options - vector of all specified options.
      * @throws option_error if specified options do not match requirements of this option.
      */
-    void check_if_valid_with_these_options(std::vector<std::string> all_specified_options)
+    void check_if_valid_with_these_options(std::vector<std::string>& all_specified_options)
     {
         std::stringstream result;
         if (all_specified_options.size())
@@ -1276,7 +1298,7 @@ public:
             if (required_options.size() && all_specified_options.size())
             {
                 Container diff = get_set_difference(required_options,
-                                                     all_specified_options);
+                                                    all_specified_options);
                 if (diff.size())
                 {
                     result << "option \"" << name << "\" requires also: ";
@@ -1287,7 +1309,7 @@ public:
             if (not_wanted_options.size())
             {
                 Container isect = get_set_intersection(not_wanted_options,
-                                                        all_specified_options);
+                                                       all_specified_options);
                 if (isect.size())
                 {
                     if (result.str().size() == 0)
@@ -1312,7 +1334,8 @@ public:
                     result << " can't be used with other options, but specified with: ";
                     all_specified_options.erase(std::remove(all_specified_options.begin(),
                                                             all_specified_options.end(),
-                                                            name), all_specified_options.end());
+                                                            name),
+                                                all_specified_options.end());
                     result << merge_items_to_string(all_specified_options);
                 }
             }
@@ -1451,13 +1474,14 @@ inline std::ostream& operator<<(std::ostream &out,  option& o)
         {
             const int& number_of_params = params.size();
             std::stringstream s;
-            s << "usage: " << o.name << " ";
+            s << "usage: " << split(o.name, " ,/|")[0] << " ";
 
             // list parameters first, i.e. "option_name: <paramxx> <paramxy>"
             for (int i = 0; i < number_of_params; i++)
             {
                 s << "<" << params[i].first << "> "; // name of parameter
             }
+
             std::string first_line(s.str());
             indent_and_trim(first_line, sub_indent_size,
                             DEFAULT_MAX_LINE_SIZE + sub_indent_size + 8,
@@ -1494,7 +1518,7 @@ inline std::ostream& operator<<(std::ostream &out,  option& o)
     {
         // This will happen if option params were not extracted with the doxydict.
         out << std::string(sub_indent_size, ' ');
-        out << "usage: " << o.name << " " << o.usage;
+        out << "usage: " << split(o.name, " ,/|")[0] << " " << o.usage;
     }
     return out;
 }
@@ -2237,7 +2261,7 @@ public:
     /**
      * @brief TYpe for container used to keep options.
      */
-    typedef std::map<std::string, option*> OptionContainer;
+    typedef alias_map<std::string, option*> OptionContainer;
 
     /**
      * @brief Destructor. Cleans up allocated options.
@@ -2247,7 +2271,7 @@ public:
         OptionContainer::iterator i;
         for (i = options.begin(); i != options.end(); i++)
         {
-            delete i->second;
+            delete *i;
         }
     }
 
@@ -2268,17 +2292,41 @@ public:
     {
         if(new_option)
         {
-            if(!groups.size())
-            {
-                add_new_group("Options");
-            }
-
-            std::string name = new_option->name;
+            std::vector<std::string> aliases = split(new_option->name, " ,/|");
+            std::string& name = aliases[0];
             if(options.find(name) == options.end())
             {
+                if(!groups.size())
+                {
+                    add_new_group("Options");
+                }
+
                 options.insert(std::make_pair(name, new_option));
                 std::vector<group>::iterator g = groups.end() - 1;
                 g->add_option(name);
+            }
+            else
+            {
+                std::stringstream err;
+                err << __FUNCTION__ << "(\"" << new_option->name << "\")";
+                err << ": option \"" << name << "\" already exists!";
+                throw option_error("%s", err.str().c_str());
+            }
+
+            for(unsigned int i = 1; i < aliases.size(); i++)
+            {
+                try
+                {
+                    options.add_alias(name, aliases[i]);
+                }
+                catch(...)
+                {
+                    std::stringstream err;
+                    err << __FUNCTION__ << "(\"" << new_option->name << "\")";
+                    err << ": another option was already defined with: \"";
+                    err << aliases[i] << "\"!";
+                    throw option_error("%s", err.str().c_str());
+                }
             }
         }
     }
@@ -2294,7 +2342,7 @@ public:
         OptionContainer::iterator i = options.find(name);
         if(name.length() && i != options.end())
         {
-            result = i->second;
+            result = *i;
         }
         return result;
     }
@@ -2317,7 +2365,7 @@ public:
         OptionContainer::iterator i;
         for (i = options.begin(); i != options.end(); i++)
         {
-            const std::string& s = i->first;
+            std::string &s = (*i)->name;
             max_cmd_len = std::max<size_t>(max_cmd_len, s.length());
         }
         max_cmd_len++;
@@ -2335,8 +2383,8 @@ public:
             group::options_iterator oi;
             for (oi = g->options_begin(); oi != g->options_end(); oi++)
             {
-                const std::string& s = *oi;
-                option* o = find_option(s);
+                option* o = find_option(*oi);
+                const std::string& s = o->name;
                 // TODO: could assert here, just as a sanity check for development / changes
                 o->fmt_set_indent(max_cmd_len-s.length());
                 help_content << *o;
@@ -2344,7 +2392,6 @@ public:
             }
         }
     }
-
 
 protected:
 
@@ -2415,7 +2462,7 @@ protected:
         std::vector<std::string> option_names;
     };
 
-    std::map<std::string, option*> options;
+    OptionContainer options;
     std::vector<group> groups;
 };
 
@@ -2513,7 +2560,6 @@ public:
         std::cout << help.str();
     }
 
-
     /**
      * @brief sets options as required.
      * @param list_of_required_options - list of all options that need to be specified.
@@ -2521,15 +2567,13 @@ public:
      *        parser will notify this as an error.
      * @throws option_error if any of specified options is not valid (i.e. has not been previously added)
      */
-    void setup_options_require_all(std::string list_of_required_options)
+    void setup_options_require_all(const std::string& list_of_required_options)
     {
-        // now extract options from the list, check and add them to current one
-        std::stringstream s(list_of_required_options);
-        std::string next_option_name;
-
-        next_option_name = get_next_token(s, " ,;\"\t\n\r");
-        while (next_option_name.length() > 0)
+        // now extract options from the list and store them
+        std::vector<std::string>req_options = split(list_of_required_options, " ,;\"\t\n\r");
+        for(unsigned int i = 0; i < req_options.size(); i++)
         {
+            std::string& next_option_name = req_options[i];
             option* other_option = options.find_option(next_option_name);
             if (other_option != NULL)
             {
@@ -2541,7 +2585,6 @@ public:
                                 "error: setting option \"%s\" as required failed: option not valid",
                                 next_option_name.c_str());
             }
-            next_option_name = get_next_token(s, " ,;\"\t\n\r");
         }
     }
 
@@ -2551,15 +2594,13 @@ public:
      *        If none from this list will appear in the command line, parser will notify this as an error.
      * @throws option_error if any of specified options is not valid (i.e. has not been previously added)
      */
-    void setup_options_require_any_of(std::string list_options)
+    void setup_options_require_any_of(const std::string& list_of_options)
     {
-        // now extract options from the list, check and add them to current one
-        std::stringstream s(list_options);
-        std::string next_option_name;
-
-        next_option_name = get_next_token(s, " ,;\"\t\n\r");
-        while (next_option_name.length() > 0)
+        // now extract options from the list and store them
+        std::vector<std::string>dep_options = split(list_of_options, " ,;\"\t\n\r");
+        for(unsigned int i = 0; i < dep_options.size(); i++)
         {
+            std::string& next_option_name = dep_options[i];
             option* other_option = options.find_option(next_option_name);
             if (other_option != NULL)
             {
@@ -2567,11 +2608,9 @@ public:
             }
             else
             {
-                throw option_error(
-                                "error: %s failed: option \"%s\" is not valid",
+                throw option_error("error: %s failed: option \"%s\" is not valid",
                                 __FUNCTION__, next_option_name.c_str());
             }
-            next_option_name = get_next_token(s, " ,;\"\t\n\r");
         }
     }
 
@@ -2582,7 +2621,8 @@ public:
      * @param list_of_dependent_options string containing list of options (comma/semicolon/space separated)
      * @throws option_error if any of specified options is not valid (i.e. has not been previously added)
      */
-    void setup_option_add_required(std::string option_name, std::string list_of_dependent_options)
+    void setup_option_add_required(const std::string& option_name,
+                                   const std::string& list_of_dependent_options)
     {
         try
         {
@@ -2602,7 +2642,8 @@ public:
      * @param list_of_not_wanted_options string containing list of options (comma/semicolon/space separated)
      * @throws option_error if any of specified options is not valid (i.e. has not been previously added)
      */
-    void setup_option_add_not_wanted(std::string option_name, std::string list_of_not_wanted_options)
+    void setup_option_add_not_wanted(const std::string& option_name,
+                                     const std::string& list_of_not_wanted_options)
     {
         try
         {
@@ -2621,7 +2662,7 @@ public:
      * @param option_name option name, for which dependent options are being specified
      * @throws option_error if option is not valid (i.e. has not been previously added)
      */
-    void setup_option_as_standalone(std::string option_name)
+    void setup_option_as_standalone(const std::string& option_name)
     {
         option* o = options.find_option(option_name);
         if (o == NULL)
@@ -2783,19 +2824,12 @@ protected:
         std::stringstream err;
         if (a != NULL)
         {
+            a->set_description(description);
             if (a->name.length() != 0) // adding standard option
             {
                 if (default_option == NULL)
                 {
-                    a->set_description(description);
-                    if (options.find_option(a->name) != NULL) // TODO: perhaps should move it to add_new_option() ?
-                    {
-                        err << __FUNCTION__ << "(): option \"" << a->name << "\" already exists";
-                    }
-                    else
-                    {
-                        options.add_new_option(a);
-                    }
+                    options.add_new_option(a);
                 }
                 else
                 {
@@ -2814,7 +2848,6 @@ protected:
                     else
                     {
                         default_option = a;
-                        default_option->set_description(description);
                         // we will set option name to program name, but it will happen when it
                         // will be about to execute (i.e. we don't know argv[0] yet)
                     }
@@ -3010,14 +3043,15 @@ protected:
      * @brief Internal typedef for option member pointer (will be used either for
      *        option::add_required_option or option::add_not_wanted_option
      */
-    typedef void (option::*operation_type)(std::string);
+    typedef void (option::*operation_type)(const std::string&);
 
     /**
      * @brief Internal method to add selected list of option to either required or not wanted list.
      * @throws option_error any of specified options is not valid.
      */
-    void try_to_add_dependent_options(std::string& to_option, std::string& list_of_options,
-                    operation_type add_dependent_option)
+    void try_to_add_dependent_options(const std::string& to_option,
+                                      const std::string& list_of_options,
+                                      operation_type add_dependent_option)
     {
         option* curr_option = options.find_option(to_option);
         if (curr_option == NULL)
@@ -3027,18 +3061,15 @@ protected:
                             to_option.c_str());
         }
 
-
         // now extract options from the list, check and add them to current one
-        std::stringstream s(list_of_options);
-        std::string next_option_name;
-
-        next_option_name = get_next_token(s, " ,;\"\t\n\r");
-        while (next_option_name.length() > 0)
+        std::vector<std::string>dep_options = split(list_of_options, " ,;\"\t\n\r");
+        for(unsigned int i = 0; i < dep_options.size(); i++)
         {
+            std::string& next_option_name = dep_options[i];
             option* other_option = options.find_option(next_option_name);
             if (other_option != NULL)
             {
-                (curr_option->*add_dependent_option)(next_option_name);
+                (curr_option->*add_dependent_option)(other_option->name);
             }
             else
             {
@@ -3046,7 +3077,6 @@ protected:
                                 "error: adding dependencies for option \"%s\" failed: option \"%s\" is not valid",
                                 to_option.c_str(), next_option_name.c_str());
             }
-            next_option_name = get_next_token(s, " ,;\"\t\n\r");
         }
     }
 
@@ -3071,7 +3101,6 @@ protected:
         }
         return result;
     }
-
 
     bool check_options_and_execute()
     {
@@ -3127,7 +3156,16 @@ protected:
                 }
             }
 
+            std::vector<std::string> specified_full_names;
             std::vector<std::string>::iterator i;
+
+            // convert our execute list into a list containing full option names
+            // we will need it for 'valid with these options' check
+            for(i = execute_list.begin(); i != execute_list.end(); i++)
+            {
+                specified_full_names.push_back(options.find_option(*i)->name);
+            }
+
             for (i = execute_list.begin(); i != execute_list.end(); i++)
             {
                 try
@@ -3135,7 +3173,7 @@ protected:
                     option* option_to_execute = options.find_option(*i);
                     if(option_to_execute != NULL) // TODO: RT assert? it's not possible that this is NULL, unless a bug is introduced during development etc.
                         {
-                        option_to_execute->check_if_valid_with_these_options(execute_list);
+                        option_to_execute->check_if_valid_with_these_options(specified_full_names);
                         }
                 }
                 catch (option_error& e)

@@ -58,7 +58,9 @@ int main(int argc, char **argv)
     desc << "Author: Lukasz Forynski (lukasz.forynski@gmail.com)";
     parser.set_description(desc.str());
 
-    parser.add_option(aa, "aa", "simple option - no specific requirements");
+    // can specify multiple aliases for option: separate them with either of: ",/| ".
+    parser.add_option(aa, "-a,option_a", "simple option - no specific requirements");
+
     parser.add_option(bb, "bb", "another option - no specific requirements");
     parser.add_option(a_b, "a_b", "option that requires specifying another two..");
     parser.add_option(a_only, "a_only", "only use with a specific sub-set of options.");
@@ -66,12 +68,11 @@ int main(int argc, char **argv)
     parser.add_option(standalone, "standalone", "If specified-it should be the only option.");
 
     // now setup dependencies..
-
     // setup required options - in form of a comma/colon/semicolon or space separated list.
     // All options used - should be valid (i.e. should have been added already)
-    parser.setup_option_add_required("a_b", "aa, bb");
+    parser.setup_option_add_required("a_b", "-a, bb");
     parser.setup_option_add_not_wanted("a_only", "bb, a_b, standalone");
-    parser.setup_option_add_not_wanted("b_only", "aa, a_b, standalone");
+    parser.setup_option_add_not_wanted("b_only", "option_a, a_b, standalone");
 
     // this adds option as a standalone (i.e. it must not be specified with any other option)
     parser.setup_option_as_standalone("standalone");
@@ -88,32 +89,36 @@ int main(int argc, char **argv)
 
 example2, version: 0.0.1
 
-This is an example of how to use cmd_line_options library
-to specify options with dependencies. The framework will provide all
-the logic required to check if a combination of selected options is valid.
-Author: Lukasz Forynski (lukasz.forynski@gmail.com)
+ This is an example of how to use cmd_line_options library
+ to specify options with dependencies. The framework will provide all
+ the logic required to check if a combination of selected options is valid.
+ Author: Lukasz Forynski (lukasz.forynski@gmail.com)
 
-Use "?" or "help" to print more information.
 
 Options:
 
-  a_b        : option that requires specifying another two..
-       usage : example2 a_b
+ -a,option_a: simple option - no specific requirements
+       usage: -a
 
-  a_only     : only use with a specific sub-set of options.
-       usage : example2 a_only
 
-  aa         : simple option - no specific requirements
-       usage : example2 aa
+          bb: another option - no specific requirements
+       usage: bb
 
-  b_only     : also with only specific sub-set of options.
-       usage : example2 b_only
 
-  bb         : another option - no specific requirements
-       usage : example2 bb
+         a_b: option that requires specifying another two..
+       usage: a_b
 
-  standalone : If specified-it should be the only option.
-       usage : example2 standalone
+
+      a_only: only use with a specific sub-set of options.
+       usage: a_only
+
+
+      b_only: also with only specific sub-set of options.
+       usage: b_only
+
+
+  standalone: If specified-it should be the only option.
+       usage: standalone
 
  ____________________________________
 
@@ -125,7 +130,7 @@ Options:
  void a_b()
  void bb()
  void aa()
- ____________________________________
+_____________________
 
  $ ./example2 b_only aa
  error: option "b_only" can't be used with: "aa"
