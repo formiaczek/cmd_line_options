@@ -19,6 +19,7 @@ test-suite test_suite
   :
     [ run  test_options_one_param.cpp test_options_definitions ]
     [ run  test_options_multiple_params.cpp test_options_definitions ]
+    [ run  test_alias_map.cpp ]
   ;
 
 

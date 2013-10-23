@@ -152,6 +152,28 @@ public:
         remove_object(item);
     }
 
+    /**
+     * @brief Removes element from the map.
+     */
+    void erase(const_iterator item_iterator)
+    {
+        if(item_iterator != end())
+        {
+            remove_object(*(item_iterator.aliases()).begin());
+        }
+    }
+
+    /**
+     * @brief Removes all elements from the map.
+     */
+    void clear()
+    {
+        if(size())
+        {
+            mapping.clear();
+            objects.clear();
+        }
+    }
 
     ObjType& operator[](const KeyType& key)
     {
@@ -402,6 +424,15 @@ inline void test_alias_map()
         std::string& k = *i;
         std::cout <<" => " << k << "\n";
     }
+
+    size_t size = m.size();
+    i = m.find("3");
+    m.erase(i);
+    TEST_THROWS_( m["3"] += "abc" );
+    TEST_COND_(size > m.size());
+
+    m.clear();
+    TEST_COND_(m.size() == 0);
 
     std::cout << "all tests passed OK!";
     }
