@@ -13,7 +13,7 @@
 
 #include "cmd_line_options.h"
 
-#define PRINT_FCN_NAME 	printf("%s \n", __PRETTY_FUNCTION__)
+#define PRINT_FCN_NAME 	std::cout << __PRETTY_FUNCTION__ << "\n"
 
 void aa()
 {

@@ -81,24 +81,24 @@
 #include <sstream>
 #include <exception>
 #include <stdexcept>
-#include <stdio.h>
-#include <stdarg.h>
-#include <stdlib.h>
 #include "alias_map.h"
 
-#define DEFAULT_MAX_LINE_SIZE   70 // TODO 80
+#define DEFAULT_MAX_LINE_SIZE   70
 #define DEFAULT_SUB_INDENT_SIZE 4
 
 #define SPLIT_TO_NAME_AND_STR(identifier) identifier, #identifier
 
-
-#ifdef _MSC_VER
-#define VSNPRINTF(dest, max_len, format, vargs) vsnprintf_s(dest, max_len, max_len, format, vargs)
-#define __PRETTY_FUNCTION__ __FUNCTION__
-#else
-#define VSNPRINTF(dest, max_len, format, vargs) vsnprintf(dest, max_len, format, vargs)
-#endif
-
+/**
+ * @brief Custom exception type for option-related errors.
+ */
+class option_error: public std::runtime_error
+{
+public:
+    option_error(const std::string &what) :
+        std::runtime_error(what)
+    {
+    }
+};
 
 /**
  * @brief Compile-time assert macro. Allows adding a message.
@@ -137,45 +137,17 @@ std::string demangled_typeid()
     int status;
     return abi::__cxa_demangle(typeid(T).name(), 0, 0, &status);
 }
-#define STATIC_ASSERT(x, what) throw option_error("Paramter of type: <%s> can not be used to define option(s).", \
-                                                  demangled_typeid<ParamType>().c_str())
+#define STATIC_ASSERT(x, what) \
+    { \
+    std::stringstream err; \
+    err << "Parameter of type: <" << demangled_typeid<ParamType>(); \
+    err << "> can not be used to define option(s)."; \
+    throw option_error(err.str()); \
+    }
+
 #endif /*C++0x supported*/
 #endif /*__cplusplus*/
 
-/**
- @brief  option_error type to allow to reporting errors with some useful info.
- */
-class option_error: public std::exception
-{
-public:
-    /**
-     @brief  Overloaded constructor. Use it as printf() for exceptions..
-     */
-    option_error(std::string format, ...)
-    {
-        if(format.length() > 0)
-        {
-            va_list vArgs;
-            va_start(vArgs, format);
-            VSNPRINTF(msg, MAX_MSG_LEN, format.c_str(), vArgs);
-            va_end(vArgs);
-        }
-    }
-
-    /**
-     @brief  Overridden method to print exception info..
-     */
-    virtual const char* what() const throw ()
-    {
-        return msg;
-    }
-protected:
-    enum constants
-    {
-        MAX_MSG_LEN = 1024
-    };
-    char msg[MAX_MSG_LEN];
-};
 
 /**
  * @brief A helper class needed to safely allocate and use (using smar_tptr)
@@ -446,6 +418,15 @@ public:
     typedef std::vector<std::pair <std::string, std::string> > vector_of_string_pairs;
     typedef std::map <std::string, std::vector< std::pair <std::string, std::string> > > dict_doxynary;
 
+    class doxy_exception: public std::runtime_error
+    {
+    public:
+        doxy_exception(const std::string &what) :
+            std::runtime_error(what)
+        {
+        }
+    };
+
     doxy_dictionary()
     {
     }
@@ -485,9 +466,9 @@ public:
                     {
                         value = get_next_token(s, " :\t-\n\r");
                         if(value.rfind(".") == value.length()-1)
-                            {
+                        {
                             value.erase(value.length()-1, value.length());
-                            }
+                        }
                     }
                     else
                     {
@@ -545,7 +526,10 @@ public:
         dict_doxynary::iterator i = dict.find(token_name);
         if(i == dict.end())
         {
-            throw option_error("doxy_parser::%s(): token %s doesn't exist.", __FUNCTION__, token_name.c_str());
+            std::stringstream err;
+            err << "doxy_parser::" << __FUNCTION__ << "(): token ";
+            err << token_name << " doesn't exist.";
+            throw doxy_exception(err.str());
         }
         return i->second;
     }
@@ -602,8 +586,7 @@ public:
  *        If - no specialisation was implemented for a ParamType, the default (above) template
  *        will report a compile time error.
  */
-#define STATIC_ASSERT_IF_CAN_BE_EXTRACTED(param) \
-		{ param_extractor<param> a; (void)a;}
+#define STATIC_ASSERT_IF_CAN_BE_EXTRACTED(param) { param_extractor<param> a; (void)a;}
 
 /**
  * @brief Specialisation of param_extractor for "int" type.
@@ -639,7 +622,9 @@ public:
 
         if (token.fail() || !token.eof())
         {
-            throw option_error("%s, got: \"%s\"", usage().c_str(), token.str().c_str());
+            std::stringstream err;
+            err << usage() << ", got: \"" << token << "\"";
+            throw option_error(err.str());
         }
         return param * sign;
     }
@@ -688,7 +673,9 @@ public:
 
         if (token.fail() || !token.eof() || sign == -1)
         {
-            throw option_error("%s, got: \"%s\"", usage().c_str(), token.str().c_str());
+            std::stringstream err;
+            err << usage() << ", got: \"" << token << "\"";
+            throw option_error(err.str());
         }
         return param;
     }
@@ -733,7 +720,9 @@ public:
 
         if (token.fail() || !token.eof())
         {
-            throw option_error("%s, got: \"%s\"", usage().c_str(), token.str().c_str());
+            std::stringstream err;
+            err << usage() << ", got: \"" << token << "\"";
+            throw option_error(err.str());
         }
         return param * sign;
     }
@@ -782,7 +771,9 @@ public:
 
         if (token.fail() || !token.eof() || sign == -1)
         {
-            throw option_error("%s, got: \"%s\"", usage().c_str(), token.str().c_str());
+            std::stringstream err;
+            err << usage() << ", got: \"" << token << "\"";
+            throw option_error(err.str());
         }
         return param;
     }
@@ -830,7 +821,9 @@ public:
 
         if (token.fail() || !token.eof())
         {
-            throw option_error("%s, got: \"%s\"", usage().c_str(), token.str().c_str());
+            std::stringstream err;
+            err << usage() << ", got: \"" << token << "\"";
+            throw option_error(err.str());
         }
         return param * sign;
     }
@@ -878,7 +871,9 @@ public:
 
         if (token.fail() || !token.eof() || sign == -1)
         {
-            throw option_error("%s, got: \"%s\"", usage().c_str(), token.str().c_str());
+            std::stringstream err;
+            err << usage() << ", got: \"" << token << "\"";
+            throw option_error(err.str());
         }
         return param;
     }
@@ -908,7 +903,9 @@ public:
         param = token.get();
         if (token.fail() || token.get() != std::char_traits<char>::eof())
         {
-            throw option_error("%s, got: \"%s\"", usage().c_str(), token.str().c_str());
+            std::stringstream err;
+            err << usage() << ", got: \"" << token << "\"";
+            throw option_error(err.str());
         }
         return param;
     }
@@ -938,7 +935,9 @@ public:
         param = token.get();
         if (token.fail() || token.get() != std::char_traits<char>::eof())
         {
-            throw option_error("%s, got: \"%s\"", usage().c_str(), token.str().c_str());
+            std::stringstream err;
+            err << usage() << ", got: \"" << token << "\"";
+            throw option_error(err.str());
         }
         return param;
     }
@@ -969,7 +968,9 @@ public:
         param = token.get();
         if (token.fail() || token.get() != std::char_traits<char>::eof())
         {
-            throw option_error("%s, got: \"%s\"", usage().c_str(), token.str().c_str());
+            std::stringstream err;
+            err << usage() << ", got: \"" << token << "\"";
+            throw option_error(err.str());
         }
         return param;
     }
@@ -997,7 +998,9 @@ public:
         std::string s = get_next_token(from);
         if (s.size() == 0)
         {
-            throw option_error("%s, got \"\".", usage().c_str());
+            std::stringstream err;
+            err << usage() << ", got \"\"";
+            throw option_error(err.str());
         }
         return s;
     }
@@ -1028,7 +1031,9 @@ public:
         token >> param;
         if (token.fail() || !token.eof())
         {
-            throw option_error("%s, got: \"%s\"", usage().c_str(), token.str().c_str());
+            std::stringstream err;
+            err << usage() << ", got: \"" << token << "\"";
+            throw option_error(err.str());
         }
         return param;
     }
@@ -1056,10 +1061,11 @@ public:
         double param;
         std::stringstream token(get_next_token(from));
         token >> param;
-
         if (token.fail() || !token.eof())
         {
-            throw option_error("%s, got: \"%s\"", usage().c_str(), token.str().c_str());
+            std::stringstream err;
+            err << usage() << ", got: \"" << token << "\"";
+            throw option_error(err.str());
         }
         return param;
     }
@@ -1086,12 +1092,12 @@ public:
     {
         long double param;
         std::stringstream token(get_next_token(from));
-
         token >> param;
-
         if (token.fail() || !token.eof())
         {
-            throw option_error("%s, got: \"%s\"", usage().c_str(), token.str().c_str());
+            std::stringstream err;
+            err << usage() << ", got: \"" << token << "\"";
+            throw option_error(err.str());
         }
         return param;
     }
@@ -1182,7 +1188,8 @@ public:
         try
         {
             param.value = param_extractor<ParamType>::extract(from);
-        } catch (option_error& /*e*/)
+        }
+        catch (const option_error&)
         {
             // in this case -this could have been some other (next) option
             // so unget (rewind) it allowing next parsers to continue from last place
@@ -1343,7 +1350,9 @@ public:
 
         if (result.str().length() > 0)
         {
-            throw option_error("error: %s", result.str().c_str());
+            std::stringstream err;
+            err << "error: " << result.str();
+            throw option_error(err.str());
         }
     }
 
@@ -1373,7 +1382,7 @@ public:
                     throw std::runtime_error(err.str());
                 }
             }
-            catch(option_error&)
+            catch(const doxy_dictionary::doxy_exception&)
             {
                 // ok, doxy_parser not constructed, carry on
             }
@@ -1522,8 +1531,6 @@ inline std::ostream& operator<<(std::ostream &out,  option& o)
     }
     return out;
 }
-
-
 
 
 /**
@@ -2310,7 +2317,7 @@ public:
                 std::stringstream err;
                 err << __FUNCTION__ << "(\"" << new_option->name << "\")";
                 err << ": option \"" << name << "\" already exists!";
-                throw option_error("%s", err.str().c_str());
+                throw option_error(err.str());
             }
 
             for(unsigned int i = 1; i < aliases.size(); i++)
@@ -2325,7 +2332,7 @@ public:
                     err << __FUNCTION__ << "(\"" << new_option->name << "\")";
                     err << ": another option was already defined with: \"";
                     err << aliases[i] << "\"!";
-                    throw option_error("%s", err.str().c_str());
+                    throw option_error(err.str());
                 }
             }
         }
@@ -2581,9 +2588,10 @@ public:
             }
             else
             {
-                throw option_error(
-                                "error: setting option \"%s\" as required failed: option not valid",
-                                next_option_name.c_str());
+                std::stringstream err;
+                err << "error: setting option \"" << next_option_name;
+                err << "\" as required failed: option not valid";
+                throw option_error(err.str());
             }
         }
     }
@@ -2608,8 +2616,10 @@ public:
             }
             else
             {
-                throw option_error("error: %s failed: option \"%s\" is not valid",
-                                __FUNCTION__, next_option_name.c_str());
+                std::stringstream err;
+                err << "error: " << __FUNCTION__ << " failed: option \"";
+                err << next_option_name << "\" is not valid";
+                throw option_error(err.str());
             }
         }
     }
@@ -2628,7 +2638,8 @@ public:
         {
             try_to_add_dependent_options(option_name, list_of_dependent_options,
                                          &option::add_required_option);
-        } catch (option_error& err)
+        }
+        catch (const option_error& err)
         {
             std::cout << err.what() << std::endl;
             throw; // re-throw. This should indicate to the user that setup is wrong..
@@ -2649,7 +2660,8 @@ public:
         {
             try_to_add_dependent_options(option_name, list_of_not_wanted_options,
                                          &option::add_not_wanted_option);
-        } catch (option_error& err)
+        }
+        catch (const option_error& err)
         {
             std::cout << err.what() << std::endl;
             throw; // re-throw. This should indicate to the user that setup is wrong..
@@ -2667,9 +2679,10 @@ public:
         option* o = options.find_option(option_name);
         if (o == NULL)
         {
-            throw option_error(
-                            "error: adding dependencies for option \"%s\" failed, option is not valid",
-                            option_name.c_str());
+            std::stringstream err;
+            err << "error: adding dependencies for option \"";
+            err << option_name << "\" failed, option is not valid";
+            throw option_error(err.str());
         }
         else
         {
@@ -2730,7 +2743,7 @@ public:
             {
                 found = could_find_next_option(cmd_line);
             }
-            catch (option_error& err)
+            catch (const option_error& err)
             {
                 std::cout << err.what();
                 return false;
@@ -2866,7 +2879,7 @@ protected:
 
         if (err.str().length() > 0)
         {
-            throw option_error("%s", err.str().c_str());
+            throw option_error(err.str());
         }
     }
 
@@ -2880,7 +2893,9 @@ protected:
     {
         if (argv == NULL || argc < 1)
         {
-            throw option_error("%s(): argc/argv are not valid", __FUNCTION__);
+            std::stringstream err;
+            err << __FUNCTION__ << "(): argc/argv are not valid";
+            throw option_error(err.str());
         }
 
         std::string cmd_line;
@@ -2939,7 +2954,7 @@ protected:
             {
                 opt->extract_params(from);
             }
-            catch (option_error& e)
+            catch (const option_error& e)
             {
                 // failed, print usage information..
                 std::stringstream s;
@@ -2979,12 +2994,14 @@ protected:
                 opt->fmt_set_indent(3);
                 s << *opt << "\n";
 
-                throw option_error("%s\n", s.str().c_str());
+                throw option_error(s.str());
             }
         }
         else
         {
-            throw option_error("error using %s(): option can't be NULL", __FUNCTION__);
+            std::stringstream err;
+            err << "error using " << __FUNCTION__ << "(): option can't be NULL";
+            throw option_error(err.str());
         }
     }
 
@@ -3024,9 +3041,10 @@ protected:
                 {
                     if (other_args_handler == NULL/* && default_option == NULL*/)
                     {
-                        throw option_error("%s: \"%s\": no such option, try %s to see usage.\n",
-                                        program_name.c_str(),
-                                        option_name.c_str(), help_options);
+                        std::stringstream err;
+                        err << program_name << ": \"" <<  option_name << "\": ";
+                        err << "no such option, try " << help_options << " to see usage.\n";
+                        throw option_error(err.str());
                     }
                     else
                     {
@@ -3056,9 +3074,10 @@ protected:
         option* curr_option = options.find_option(to_option);
         if (curr_option == NULL)
         {
-            throw option_error(
-                            "error: adding dependencies for option \"%s\" failed, option is not valid",
-                            to_option.c_str());
+            std::stringstream err;
+            err << "error: adding dependencies for option \"";
+            err << to_option << "\" failed, option is not valid";
+            throw option_error(err.str());
         }
 
         // now extract options from the list, check and add them to current one
@@ -3073,9 +3092,10 @@ protected:
             }
             else
             {
-                throw option_error(
-                                "error: adding dependencies for option \"%s\" failed: option \"%s\" is not valid",
-                                to_option.c_str(), next_option_name.c_str());
+                std::stringstream err;
+                err << "error: adding dependencies for option \"";
+                err << to_option << "\" failed, option \"" << next_option_name << "\" is not valid";
+                throw option_error(err.str());
             }
         }
     }
@@ -3094,7 +3114,7 @@ protected:
                 try_to_extract_params(default_option, cmd_line);
                 result = true;
             }
-            catch (option_error& e)
+            catch (const option_error& e)
             {
                 std::cout << e.what() << std::endl;
             }
@@ -3171,15 +3191,14 @@ protected:
                 try
                 {
                     option* option_to_execute = options.find_option(*i);
-                    if(option_to_execute != NULL) // TODO: RT assert? it's not possible that this is NULL, unless a bug is introduced during development etc.
-                        {
+                    if(option_to_execute)
+                    {
                         option_to_execute->check_if_valid_with_these_options(specified_full_names);
-                        }
+                    }
                 }
-                catch (option_error& e)
+                catch (const option_error& e)
                 {
                     std::cout << "\n" << program_name << ": " <<  e.what() << std::endl;
-
                     // should skip any execution if options were not right.
                     execute_list.clear();
                     break;
@@ -3191,11 +3210,10 @@ protected:
                 for (i = execute_list.begin(); i != execute_list.end(); i++)
                 {
                     option* option_to_execute = options.find_option(*i);
-
                     if(option_to_execute) // TODO: similarly here..
-                        {
+                    {
                         option_to_execute->execute();
-                        }
+                    }
                 }
                 result = true;
             }

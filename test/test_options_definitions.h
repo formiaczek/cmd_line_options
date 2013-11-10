@@ -92,26 +92,12 @@ inline std::ostream& operator<<(std::ostream &out,  my_argv& argv)
     return out;
 }
 
-void option0();
-void option1_uchar(unsigned char param1);
-void option1_char(char param1);
-void option1_schar(signed char param1);
-void option1_short(short param1);
-void option1_ushort(unsigned short param1);
-void option1_int(int param1);
-void option1_uint(unsigned int param1);
-void option1_long(long param1);
-void option1_ulong(unsigned long integer);
-void option1_float(float param1);
-void option1_double(double integer);
-void option1_ldouble(long double integer);
-void option1_string(std::string param1);
 
 class state
 {
 public:
     state() :
-                    called_ok(false)
+        called_ok(false)
     {
     }
 
@@ -375,5 +361,42 @@ inline std::string status_manager::get_stored_value<std::string>(int num_of_para
     return status[num_of_param].s_param_string.get_stored_value();
 }
 
+
 /////--------
+inline void option0()
+{
+    status_manager::store_value(0);
+}
+
+template <typename P1>
+void option1(P1 param1)
+{
+    status_manager::store_value(1, param1);
+}
+
+template <typename P1, typename P2>
+void option2(P1 param1, P2 param2)
+{
+    status_manager::store_value(1, param1);
+    status_manager::store_value(2, param2);
+}
+
+template <typename P1, typename P2, typename P3>
+void option3(P1 param1, P2 param2, P3 param3)
+{
+    status_manager::store_value(1, param1);
+    status_manager::store_value(2, param2);
+    status_manager::store_value(3, param2);
+}
+
+template <typename ObjType, typename P1, typename P2, typename P3>
+void option_obj(ObjType* ptr, P1 param1, P2 param2, P3 param3)
+{
+    status_manager::store_value(1, param1);
+    status_manager::store_value(2, param2);
+    status_manager::store_value(3, param2);
+}
+
+
+
 #endif /* TEST_OPTIONS_DEFINITIONS_H_ */

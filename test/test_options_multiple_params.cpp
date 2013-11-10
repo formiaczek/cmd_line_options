@@ -17,6 +17,37 @@
 static const char* program_name = "some/path/program/name";
 
 
+TEST_CASE("test option 2 params", "should pass")
+{
+    std::cout << "test option 2 params..\n";
+
+    cmd_line_parser parser;
+    REQUIRE_NOTHROW( parser.add_option(option2<int, int>, "a,optiona", "option a") );
+    REQUIRE_NOTHROW( parser.add_option(option2<long, double>, "d,-d", "option d") );
+    REQUIRE_NOTHROW( parser.add_option(option2<float, std::string>, "e", "option e") );
+    REQUIRE_NOTHROW( parser.add_option(option2<short, unsigned char>, "f,-f", "option f") );
+
+    REQUIRE_THROWS( parser.add_option(option2<short, unsigned char>, "-f,duplicatedf", "-f is duplicated(alias exist already)") );
+    REQUIRE_THROWS( parser.add_option(option2<short, unsigned char>, "d,duplicatedd", "d is duplicated(alias exist already)") );
+
+    REQUIRE_NOTHROW( parser.add_option(option2<char, int>,
+                                       "b",
+                                       "@brief option b that takes 2 arguments."
+                                       "@param letter some letter."
+                                       "@param num a number..") );
+
+    REQUIRE_THROWS( parser.add_option(option2<char, int>,
+                                       "c",
+                                       "@brief option c that takes 2 arguments."
+                                       "@param letter some letter.")); // not all params have description!
+
+    REQUIRE_NOTHROW( parser.add_option(option2<char, int>,
+                                       "c", "@brief option b that takes 2 arguments.")); // but OK if no param is described.
+
+
+    REQUIRE_NOTHROW( parser.add_option(option0, "g", "option g that takes no params") ); // mixing them should work too..
+}
+
 TEST_CASE("test setup require all", "should pass")
 {
     std::cout << "test setup of require all..\n";

@@ -81,7 +81,7 @@ TEST_CASE("test option 1 param: int..", "..")
     std::cout << "test option 1 param: int..\n";
 
     cmd_line_parser parser;
-    REQUIRE_NOTHROW( parser.add_option(option1_int, "int", "that takes int") );
+    REQUIRE_NOTHROW( parser.add_option(option1<int>, "int", "that takes int") );
 
     my_argv argv;
     argv.add_param(program_name);
@@ -126,7 +126,7 @@ TEST_CASE("test option 1 param: char..", "..")
 {
     std::cout << "test option 1 param: char..\n";
     cmd_line_parser parser;
-    REQUIRE_NOTHROW( parser.add_option(option1_char, "char", "that takes a character") );
+    REQUIRE_NOTHROW( parser.add_option(option1<char>, "char", "that takes a character") );
 
     my_argv argv;
     argv.add_param(program_name);
@@ -161,7 +161,7 @@ TEST_CASE("test option 1 param: char..", "..")
 TEST_CASE("test option 1 param: double..", "..")
 {
     cmd_line_parser parser;
-    REQUIRE_NOTHROW( parser.add_option(option1_double, "double", "that takes double") );
+    REQUIRE_NOTHROW( parser.add_option(option1<double>, "double", "that takes double") );
 
     my_argv argv;
     argv.add_param(program_name);
