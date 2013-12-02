@@ -180,7 +180,7 @@ inline std::string get_next_token(std::stringstream& from, std::string delimiter
     {
         long max_token_size = from.str().size() - where;
         std::string temp_token = from.str().substr(where, max_token_size);
-        int end = temp_token.find_first_of(delimiter_list);
+        long end = temp_token.find_first_of(delimiter_list);
 
         // skip all delimiters before next token
         while (end == 0 && max_token_size > 0)
@@ -2584,7 +2584,7 @@ public:
             option* other_option = options.find_option(next_option_name);
             if (other_option != NULL)
             {
-                options_required_all.push_back(next_option_name);
+                options_required_all.push_back(other_option->name);
             }
             else
             {
@@ -2612,7 +2612,7 @@ public:
             option* other_option = options.find_option(next_option_name);
             if (other_option != NULL)
             {
-                optons_required_any_of.push_back(next_option_name);
+                optons_required_any_of.push_back(other_option->name);
             }
             else
             {
@@ -3136,10 +3136,20 @@ protected:
         }
         else
         {
+            std::vector<std::string> specified_full_names;
+            std::vector<std::string>::iterator i;
+
+            // convert our execute list into a list containing full option names
+            // we will need it for 'valid with these options' check
+            for(i = execute_list.begin(); i != execute_list.end(); i++)
+            {
+                specified_full_names.push_back(options.find_option(*i)->name);
+            }
+
             if (options_required_all.size())
             {
                 std::stringstream err_msg;
-                std::vector<std::string> isect = get_set_intersection(options_required_all, execute_list);
+                std::vector<std::string> isect = get_set_intersection(options_required_all, specified_full_names);
                 if (isect.size() != options_required_all.size())
                 {
                     err_msg << "required following option(s): \n ";
@@ -3163,7 +3173,7 @@ protected:
             if (optons_required_any_of.size())
             {
                 std::stringstream err_msg;
-                std::vector<std::string> isect = get_set_intersection(optons_required_any_of, execute_list);
+                std::vector<std::string> isect = get_set_intersection(optons_required_any_of, specified_full_names);
                 if (isect.size() == 0)
                 {
                     err_msg << "at least one of the following option(s) is required:\n";
@@ -3174,16 +3184,6 @@ protected:
                     std::cout << "\n" << program_name << ": " << err_msg.str() << "\n";
                     return false;
                 }
-            }
-
-            std::vector<std::string> specified_full_names;
-            std::vector<std::string>::iterator i;
-
-            // convert our execute list into a list containing full option names
-            // we will need it for 'valid with these options' check
-            for(i = execute_list.begin(); i != execute_list.end(); i++)
-            {
-                specified_full_names.push_back(options.find_option(*i)->name);
             }
 
             for (i = execute_list.begin(); i != execute_list.end(); i++)

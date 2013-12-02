@@ -13,6 +13,9 @@
 #include <typeinfo>
 #include "cmd_line_options.h"
 
+#ifndef __PRETTY_FUNCTION__
+#define __PRETTY_FUNCTION__ __FUNCTION__
+#endif
 #define PRINT_FCN_NAME 	printf("%s \n", __PRETTY_FUNCTION__)
 
 /**
