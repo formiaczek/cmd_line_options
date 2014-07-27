@@ -120,7 +120,7 @@ template<> struct CTAssert<true>
 {
 };
 #define PASTE0(x, y)  x ## y
-#define PASTE(x, y) PASTE0(x, y)
+#define PASTE(x, y)  PASTE0(x, y)
 
 #define STATIC_ASSERT(x, what) \
         CTAssert< (x) >  PASTE(PASTE(ct_assert_in_line_, __LINE__), __##what); \
@@ -129,13 +129,22 @@ template<> struct CTAssert<true>
 #else /* if C++0x supported - use static_assert()*/
 // TODO: when usig std=c++0x (or 11) static check doesn't work this way.. so we'll throw
 // a run-time exception instead..
-#include <cxxabi.h>
 #include <typeinfo>
+#ifdef __GNUC__
+#include <cxxabi.h>
+#endif /*__GNUC__*/
 template <typename T>
 std::string demangled_typeid()
 {
+#ifdef __GNUC__
     int status;
-    return abi::__cxa_demangle(typeid(T).name(), 0, 0, &status);
+    char* dt = abi::__cxa_demangle(typeid(T).name(), 0, 0, &status);
+    std::string res(dt);
+    free(dt);
+    return res;
+#else
+    return typeid(T).name(); // could do it with UndecorateXxxx,but it's too complex for this really..
+#endif /*__GNUC__*/
 }
 #define STATIC_ASSERT(x, what) \
     { \
@@ -148,25 +157,6 @@ std::string demangled_typeid()
 #endif /*C++0x supported*/
 #endif /*__cplusplus*/
 
-
-/**
- * @brief A helper class needed to safely allocate and use (using smar_tptr)
- *        An array of char - that is used below.
- */
-class char_array
-{
-public:
-    char_array(int size)
-    {
-        ptr = new char[size];
-    }
-
-    ~char_array()
-    {
-        delete[] ptr;
-    }
-    char* ptr;
-};
 
 /**
  * @brief Helper function to extract the whole token from the stringstream,
@@ -202,8 +192,9 @@ inline std::string get_next_token(std::stringstream& from, std::string delimiter
         if (max_token_size > 0)
         {
             next_token = from.str().substr(where, end);
-            std::auto_ptr<char_array> buff(new char_array(next_token.size() + 1));
-            from.get(buff->ptr, next_token.size() + 1);
+            std::stringstream::pos_type seek_to = from.tellg();
+            seek_to += next_token.size()+1;
+            from.seekg(seek_to);
         }
     }
     return next_token;
