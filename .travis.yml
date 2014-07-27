@@ -1,10 +1,27 @@
 language: cpp
 compiler: gcc 
 before_script:
+  - ls -a
   - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
   - sudo apt-get -qq update
-  - sudo apt-get -qq install libboost-all-dev
+  - wget https://github.com/ned14/boost-trunk/archive/release/Boost_1_54_0.tar.gz
+  - tar zxf Boost_1_54_0.tar.gz
+  - mv boost-trunk-release-Boost_1_54_0 $HOME/boost-trunk
+  - BOOST="$HOME/boost-trunk/"
+  - BOOST_ROOT="$HOME/boost-trunk/"
+  - export BOOST_ROOT
+  - export BOOST 
+
+# install boost build
+  - pushd $BOOST/tools/build/v2
+  - ./bootstrap.sh
+  - sudo ./b2 install
+  - popd
+  - ls -a 
+  - echo $BOOST_ROOT
+
   - git submodule update --init --recursive
+
 script:
   - b2
 
