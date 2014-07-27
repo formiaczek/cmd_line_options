@@ -1,0 +1,10 @@
+language: cpp
+compiler: gcc 
+before_script:
+  - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+  - sudo apt-get -qq update
+  - sudo apt-get -qq install libboost-dev
+  - git submodule update --init --recursive
+script:
+  - b2
+
