@@ -3,7 +3,7 @@ compiler: gcc
 before_script:
   - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
   - sudo apt-get -qq update
-  - sudo apt-get -qq install libboost-dev
+  - sudo apt-get -qq install libboost-all-dev
   - git submodule update --init --recursive
 script:
   - b2
