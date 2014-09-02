@@ -614,7 +614,7 @@ public:
         if (token.fail() || !token.eof())
         {
             std::stringstream err;
-            err << usage() << ", got: \"" << token << "\"";
+            err << usage() << ", got: \"" << token.str() << "\"";
             throw option_error(err.str());
         }
         return param * sign;
@@ -665,7 +665,7 @@ public:
         if (token.fail() || !token.eof() || sign == -1)
         {
             std::stringstream err;
-            err << usage() << ", got: \"" << token << "\"";
+            err << usage() << ", got: \"" << token.str() << "\"";
             throw option_error(err.str());
         }
         return param;
@@ -712,7 +712,7 @@ public:
         if (token.fail() || !token.eof())
         {
             std::stringstream err;
-            err << usage() << ", got: \"" << token << "\"";
+            err << usage() << ", got: \"" << token.str() << "\"";
             throw option_error(err.str());
         }
         return param * sign;
@@ -763,7 +763,7 @@ public:
         if (token.fail() || !token.eof() || sign == -1)
         {
             std::stringstream err;
-            err << usage() << ", got: \"" << token << "\"";
+            err << usage() << ", got: \"" << token.str() << "\"";
             throw option_error(err.str());
         }
         return param;
@@ -813,7 +813,7 @@ public:
         if (token.fail() || !token.eof())
         {
             std::stringstream err;
-            err << usage() << ", got: \"" << token << "\"";
+            err << usage() << ", got: \"" << token.str() << "\"";
             throw option_error(err.str());
         }
         return param * sign;
@@ -863,7 +863,7 @@ public:
         if (token.fail() || !token.eof() || sign == -1)
         {
             std::stringstream err;
-            err << usage() << ", got: \"" << token << "\"";
+            err << usage() << ", got: \"" << token.str() << "\"";
             throw option_error(err.str());
         }
         return param;
@@ -895,7 +895,7 @@ public:
         if (token.fail() || token.get() != std::char_traits<char>::eof())
         {
             std::stringstream err;
-            err << usage() << ", got: \"" << token << "\"";
+            err << usage() << ", got: \"" << token.str() << "\"";
             throw option_error(err.str());
         }
         return param;
@@ -927,7 +927,7 @@ public:
         if (token.fail() || token.get() != std::char_traits<char>::eof())
         {
             std::stringstream err;
-            err << usage() << ", got: \"" << token << "\"";
+            err << usage() << ", got: \"" << token.str() << "\"";
             throw option_error(err.str());
         }
         return param;
@@ -960,7 +960,7 @@ public:
         if (token.fail() || token.get() != std::char_traits<char>::eof())
         {
             std::stringstream err;
-            err << usage() << ", got: \"" << token << "\"";
+            err << usage() << ", got: \"" << token.str() << "\"";
             throw option_error(err.str());
         }
         return param;
@@ -1023,7 +1023,7 @@ public:
         if (token.fail() || !token.eof())
         {
             std::stringstream err;
-            err << usage() << ", got: \"" << token << "\"";
+            err << usage() << ", got: \"" << token.str() << "\"";
             throw option_error(err.str());
         }
         return param;
@@ -1055,7 +1055,7 @@ public:
         if (token.fail() || !token.eof())
         {
             std::stringstream err;
-            err << usage() << ", got: \"" << token << "\"";
+            err << usage() << ", got: \"" << token.str() << "\"";
             throw option_error(err.str());
         }
         return param;
@@ -1087,7 +1087,7 @@ public:
         if (token.fail() || !token.eof())
         {
             std::stringstream err;
-            err << usage() << ", got: \"" << token << "\"";
+            err << usage() << ", got: \"" << token.str() << "\"";
             throw option_error(err.str());
         }
         return param;
@@ -1588,7 +1588,6 @@ public:
 
         if(doxy_dict.found_tokens("param"))
         {
-            std::cout << "found description\n";
             std::pair<std::string, std::string> name_desc = doxy_dict.dict["param"].front();
         }
 
@@ -1606,8 +1605,7 @@ public:
     }
 
     /**
-     * @brief Attempts to extract the parameter and, on success - it calls the requested function.
-     * @param input stream from which next token points to the parameter that needs to be extracted.
+     * @brief Calls the requested function.
      */
     virtual void execute()
     {
@@ -1767,8 +1765,7 @@ public:
     }
 
     /**
-     * @brief Attempts to extract parameters and, on success - it calls the requested function.
-     * @param input stream from which next and following tokens point to next parameters that need to be extracted.
+     * @brief Calls the requested function.
      */
     virtual void execute()
     {
@@ -1829,8 +1826,7 @@ public:
     }
 
     /**
-     * @brief Attempts to extract parameters and, on success - it calls the requested function.
-     * @param input stream from which next and following tokens point to next parameters that need to be extracted.
+     * @brief Calls the requested function.
      */
     virtual void execute()
     {
@@ -1895,8 +1891,7 @@ public:
     }
 
     /**
-     * @brief Attempts to extract parameters and, on success - it calls the requested function.
-     * @param input stream from which next and following tokens point to next parameters that need to be extracted.
+     * @brief Calls the requested function.
      */
     virtual void execute()
     {
@@ -1989,9 +1984,7 @@ public:
     }
 
     /**
-     * @brief Attempts to extract parameter and, on success - it calls the requested function,
-     *        passing both: the address of object and extracted parameter.
-     * @param input stream from which next tokens points to the parameter that needs to be extracted.
+     * @brief Calls the requested function, passing both: the address of object and extracted parameter.
      */
     virtual void execute()
     {
@@ -2097,9 +2090,8 @@ public:
     }
 
     /**
-     * @brief Attempts to extract parameters and, on success - it calls the requested function,
+     * @brief Calls the requested function,
      *        passing both: the address of object and extracted parameters.
-     * @param input stream from which next and following tokens point to next parameters that need to be extracted.
      */
     virtual void execute()
     {
@@ -2157,9 +2149,8 @@ public:
     }
 
     /**
-     * @brief Attempts to extract parameters and, on success - it calls the requested function,
+     * @brief Calls the requested function,
      *        passing both: the address of object and extracted parameters.
-     * @param input stream from which next and following tokens point to next parameters that need to be extracted.
      */
     virtual void execute()
     {
@@ -2222,9 +2213,8 @@ public:
     }
 
     /**
-     * @brief Attempts to extract parameters and, on success - it calls the requested function,
+     * @brief Calls the requested function,
      *        passing both: the address of object and extracted parameters.
-     * @param input stream from which next and following tokens point to next parameters that need to be extracted.
      */
     virtual void execute()
     {
@@ -3409,7 +3399,8 @@ inline void cmd_line_parser::add_option(RetType function_ptr(ObjType*, P1), ObjT
 {
     STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P1);
     add_option(new option_1_param_pass_obj<RetType (*)(ObjType*, P1), ObjType, P1>(function_ptr,
-                                                                              obj_address, name),
+                                                                                   obj_address, 
+                                                                                   name),
                description);
 }
 
@@ -3426,8 +3417,8 @@ inline void cmd_line_parser::add_option(RetType function_ptr(ObjType*, P1, P2),
     STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P1);
     STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P2);
     add_option(new option_2_params_pass_obj<RetType (*)(ObjType*, P1, P2), ObjType, P1, P2>(function_ptr,
-                                                                                   obj_address,
-                                                                                   name),
+                                                                                            obj_address,
+                                                                                            name),
                description);
 }
 
@@ -3441,13 +3432,12 @@ template<class RetType, typename ObjType, typename P1, typename P2, typename P3>
 inline void cmd_line_parser::add_option(RetType function_ptr(ObjType*, P1, P2, P3),
                 ObjType* obj_address, std::string name, std::string description)
 {
-//
     STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P1);
     STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P2);
     STATIC_ASSERT_IF_CAN_BE_EXTRACTED(P3);
     add_option(new option_3_params_pass_obj<RetType (*)(ObjType*, P1, P2, P3), ObjType, P1, P2, P3>(function_ptr,
-                                                                                       obj_address,
-                                                                                       name),
+                                                                                                    obj_address,
+                                                                                                    name),
                description);
 }
 
