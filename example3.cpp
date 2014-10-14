@@ -103,12 +103,16 @@ int main(int argc, char **argv)
     parser.add_handler_for_other_arguments(other_cmd_line_arguments);
 
 
-    parser.setup_options_require_any_of("print, hello");
+    parser.setup_options_require_any_of("print, hello, --dp");
 
 
-    parser.run(argc, argv); // this starts the parser..
+    if(parser.run(argc, argv)) // this starts the parser..
+    {
+        std::cout << "\n print option was specified: " << (parser.check_if_option_specified("print") ? "yes" : "no");
 
-    // rest of your program..
+        std::cout << "\n all specified options were: ";
+        std::cout<< merge_items_to_string(parser.all_specified_option_names()) << std::endl;
+    }
 
     return 0;
 }

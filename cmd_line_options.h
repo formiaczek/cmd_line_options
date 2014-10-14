@@ -2697,7 +2697,8 @@ public:
      *        (functions) have executed - a handler for other arguments is executed.
      * @param argc: number of elements in argv
      * @param argv: command-line parameters.
-     * @return true - if parsing was successful, false otherwise or if help was requested.
+     * @return true - if command line contained anything to parse and parsing was successful or help was requested,
+     *         false otherwise.
      * @throws option_error if argc/argv are not valid.
      */
     bool run(int argc, char *const argv[])
@@ -2757,6 +2758,14 @@ public:
     {
         std::set<std::string> el(execute_list.begin(), execute_list.end()); // lazy 'two-liner' way..
         return (el.find(option_name) != el.end());
+    }
+
+    /**
+     * @brief Returns names of all specified options.
+     */
+    std::vector<std::string> all_specified_option_names()
+    {
+        return execute_list;
     }
 
     template<class RetType>
